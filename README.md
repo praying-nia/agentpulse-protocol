@@ -33,4 +33,3 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 Repository scaffold only; no wire format or protocol version has been selected yet.
 
 当前仅完成仓库占位，尚未确定线格式或协议版本。
-
