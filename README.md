@@ -18,9 +18,9 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
-The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md).
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries and centralized capability policy are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md).
 
-具体语义及其不变量由[统一领域模型](domain-model.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定。
+具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界与集中 Capability 策略由[端口与能力路由](ports-and-routing.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定。
 
 For example, an approval remains an `InteractionRequest::Approval` throughout the Core. A Native Channel may render it as buttons, while a Bot Channel may present `/approve <interaction-id>` and `/reject <interaction-id>` commands.
 
@@ -74,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-The initial channel-neutral domain semantics and strict JSON protocol v1 are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
+The initial channel-neutral domain semantics, strict JSON protocol v1, independent Provider/Channel ports, and centralized capability routing are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
 
-首版与 Channel 无关的领域语义及严格 JSON 协议 v1 已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。
+首版与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口及集中 Capability 路由已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。

@@ -59,6 +59,10 @@ REMOTE_COMMAND
 
 Capability bit positions in any implementation are private and must never be reused as a wire representation / 任一实现中的 Capability 位值均为私有细节，不得直接作为线格式。
 
+Complete-route executability, read-only degradation, endpoint correlation, and adapter handoff boundaries are defined in [Ports and Capability Routing](ports-and-routing.md). Providers and Channels declare capabilities; they do not independently redefine the routing combinations.
+
+完整链路可执行性、只读降级、端点关联及 Adapter 交接边界由[端口与能力路由](ports-and-routing.md)定义。Provider 与 Channel 只声明能力，不能各自重新定义能力组合规则。
+
 ## Session model / Session 模型
 
 `AgentSession` is a complete observed snapshot containing its Session and Provider IDs, optional Provider-native Session ID, optional title and workspace, revision, creation/update times, execution state, and Provider connectivity state.
