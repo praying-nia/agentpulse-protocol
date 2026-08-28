@@ -18,9 +18,9 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
-The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). This contract intentionally does not select a wire format.
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md).
 
-具体语义及其不变量由[统一领域模型](domain-model.md)定义。该约定有意不选择任何线格式。
+具体语义及其不变量由[统一领域模型](domain-model.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定。
 
 For example, an approval remains an `InteractionRequest::Approval` throughout the Core. A Native Channel may render it as buttons, while a Bot Channel may present `/approve <interaction-id>` and `/reject <interaction-id>` commands.
 
@@ -74,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-The initial channel-neutral domain semantics are defined. No wire format or protocol version has been selected yet.
+The initial channel-neutral domain semantics and strict JSON protocol v1 are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
 
-首版与 Channel 无关的领域语义已经确定，线格式与协议版本仍未选择。
+首版与 Channel 无关的领域语义及严格 JSON 协议 v1 已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。

@@ -28,6 +28,8 @@ jobs:
         run: |
           test -s README.md
           test -s domain-model.md
+          test -s wire-v1.md
+          test "$(find fixtures/v1 -maxdepth 1 -type f -name '*.json' | wc -l)" -eq 6
           git show --check --format= HEAD
 
       - name: Validate JSON documents
