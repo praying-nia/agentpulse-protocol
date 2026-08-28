@@ -27,6 +27,7 @@ jobs:
         shell: bash
         run: |
           test -s README.md
+          test -s domain-model.md
           git show --check --format= HEAD
 
       - name: Validate JSON documents

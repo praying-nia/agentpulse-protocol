@@ -18,6 +18,10 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). This contract intentionally does not select a wire format.
+
+具体语义及其不变量由[统一领域模型](domain-model.md)定义。该约定有意不选择任何线格式。
+
 For example, an approval remains an `InteractionRequest::Approval` throughout the Core. A Native Channel may render it as buttons, while a Bot Channel may present `/approve <interaction-id>` and `/reject <interaction-id>` commands.
 
 例如，一个审批请求在 Core 中始终是 `InteractionRequest::Approval`。Native Channel 可以将其呈现为按钮，而 Bot Channel 可以将其表现为 `/approve <interaction-id>` 与 `/reject <interaction-id>` 命令。
@@ -31,6 +35,7 @@ Each Provider declares which agent-side events and write-back operations it supp
 ```text
 SESSION_STATE
 TOOL_EVENTS
+PLAN
 PROGRESS
 APPROVAL_REQUEST
 APPROVAL_RESPONSE
@@ -47,6 +52,8 @@ Each Channel separately declares which presentation and input forms it supports.
 ```text
 NOTIFICATION
 SESSION_VIEW
+TOOL_VIEW
+PLAN_VIEW
 PROGRESS_VIEW
 RICH_MESSAGE
 APPROVAL
@@ -54,6 +61,7 @@ CHOICE_INPUT
 TEXT_INPUT
 FORM_INPUT
 REALTIME_SYNC
+REMOTE_COMMAND
 ```
 
 Capabilities are negotiated across the complete route. The Core must not assume that every Provider accepts remote input or that every Channel can render every interaction. Unsupported operations degrade to the available notification or read-only behavior instead of being presented as actionable.
@@ -66,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-Repository scaffold only; no wire format or protocol version has been selected yet.
+The initial channel-neutral domain semantics are defined. No wire format or protocol version has been selected yet.
 
-当前仅完成仓库占位，尚未确定线格式或协议版本。
+首版与 Channel 无关的领域语义已经确定，线格式与协议版本仍未选择。
