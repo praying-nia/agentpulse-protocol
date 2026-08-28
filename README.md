@@ -74,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-The initial channel-neutral domain semantics, strict JSON protocol v1, independent Provider/Channel ports, and centralized capability routing are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
+The initial channel-neutral domain semantics, strict JSON protocol v1, independent Provider/Channel ports, centralized capability routing, and minimal Bridge orchestration are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
 
-首版与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口及集中 Capability 路由已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。
+首版与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口、集中 Capability 路由及 Bridge 最小编排已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。
