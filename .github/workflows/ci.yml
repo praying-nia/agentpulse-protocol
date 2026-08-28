@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protocol:
+    name: Protocol checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Check repository hygiene
+        shell: bash
+        run: |
+          test -s README.md
+          git show --check --format= HEAD
+
+      - name: Validate JSON documents
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            echo "Validating $file"
+            python3 -m json.tool "$file" > /dev/null
+          done < <(find . -path ./.git -prune -o -type f -name '*.json' -print0)
+
+      - name: Create CI source snapshot
+        id: snapshot
+        shell: bash
+        run: |
+          archive="${GITHUB_REPOSITORY#*/}-${GITHUB_SHA::12}-source.tar.gz"
+          tar --exclude-vcs --exclude="$archive" -czf "$archive" .
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload CI source artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ github.event.repository.name }}-source-${{ github.sha }}
+          path: ${{ steps.snapshot.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
