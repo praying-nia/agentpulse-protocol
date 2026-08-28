@@ -124,3 +124,21 @@ Payloads cover:
 Event construction rejects an embedded Session, Interaction, or Command that refers to another Session. Tool Activity contains only its normalized call ID, tool name, outcome, and optional sanitized summary. Raw arguments, full output, secrets, and Provider-private payloads are outside this initial model.
 
 Event 构造会拒绝引用其他 Session 的内嵌 Session、Interaction 或 Command。Tool Activity 只包含标准化 Call ID、工具名称、结果与可选的清理后摘要。原始参数、完整输出、秘密及 Provider 私有 Payload 不属于首版模型。
+
+## Session reduction / Session 状态归约
+
+`SessionAggregate` is the deterministic current-state projection of one Session event stream. Construction requires a sequence-one `SessionStarted` event. Every later event belongs to the same Session and uses the exact next sequence. Retrying the complete last event is idempotent; a different event reusing that sequence, an older sequence, or a sequence gap is rejected without changing aggregate state.
+
+`SessionAggregate` 是单个 Session 事件流的确定性当前状态投影。构造必须从 Sequence 为 1 的 `SessionStarted` 开始。后续事件必须属于同一 Session，并使用严格连续的下一个 Sequence。完整重试最后一个事件具有幂等性；不同事件复用该 Sequence、旧 Sequence 或 Sequence 跳号都会被拒绝，且不会改变 Aggregate 状态。
+
+The Aggregate retains the current Session snapshot, latest Plan and Progress, active Tool Calls, unresolved Interactions, latest run Outcome, and the last applied event cursor. Plan and Progress replacements must strictly advance their independent revisions. Session state, connection, and outcome observations advance the Session revision; timestamps never regress even if event occurrence times do.
+
+Aggregate 保存当前 Session 快照、最新 Plan 与 Progress、活跃 Tool Call、尚未解决的 Interaction、最近一次运行 Outcome，以及最后应用的事件游标。Plan 与 Progress 替换必须严格推进各自独立的 Revision。Session 状态、连接和 Outcome 观察会推进 Session Revision；即使事件发生时间倒退，Session 更新时间也不会倒退。
+
+Tool Started and Finished events are paired by Tool Call ID. Interaction Responses must match a currently unresolved Request and pass the Request's semantic validation. Ending a run maps its Outcome to the corresponding execution state and clears active Tools and unresolved Interactions while preserving final Plan, Progress, and connectivity.
+
+Tool Started 与 Finished 事件按 Tool Call ID 配对。Interaction Response 必须匹配当前尚未解决的 Request，并通过该 Request 的语义校验。运行结束时，Outcome 会映射为对应执行状态，同时清除活跃 Tool 与未解决 Interaction，并保留最终 Plan、Progress 和连接状态。
+
+An optional bounded recent-event window supports lightweight inspection. Its capacity is an in-memory policy, may be zero, and never affects current-state correctness. The reducer performs no I/O and does not prescribe whether replay events come from memory, a file, a database, or a network source. An unresolved request remains in the Aggregate after its expiration time; Channels must use `expires_at` to prevent late input, and the reducer rejects any late response.
+
+可选的有界近期事件窗口用于轻量查看。其容量属于内存策略，可以设为零，且不会影响当前状态的正确性。Reducer 不执行 I/O，也不规定重放事件来自内存、文件、数据库还是网络。未解决 Request 到达过期时间后仍保留在 Aggregate 中；Channel 必须依据 `expires_at` 禁止迟到输入，Reducer 也会拒绝迟到 Response。
