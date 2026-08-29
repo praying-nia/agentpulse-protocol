@@ -132,8 +132,38 @@ For a Channel Action, the Bridge resolves the registered source Channel, require
 
 Channel Action 进入 Bridge 后，Bridge 会解析已注册的来源 Channel，要求它仍订阅目标 Session，再解析该 Session 所属的 Provider，并重新校验完整 Capability 链路。Interaction Response 还必须匹配当前待处理 Request，之后才能交给所属 Provider。交接成功不会直接修改 Aggregate 或合成 Event；Provider 仍负责发布标准化 `InteractionResponded` 或 `CommandIssued` 确认 Event。
 
+## Runtime Host and Adapter lifecycle / Runtime Host 与 Adapter 生命周期
+
+The Runtime Host owns one Bridge plus an explicitly registered execution Source for every Provider and Channel Port. Registration pairs a Provider Port with a Provider Event Source, or a Channel Port with a Channel Action Source, and is accepted only while the Host is stopped. The Bridge owns the Port half and the Host owns the Source half. The two halves may share Adapter-private state, but neither Source receives or owns the Bridge itself.
+
+Runtime Host 拥有一个 Bridge，并为每个 Provider/Channel Port 显式拥有对应的执行 Source。注册时必须成对提供 Provider Port 与 Provider Event Source，或 Channel Port 与 Channel Action Source，而且只有 Host 处于停止态时才允许注册。Bridge 拥有 Port 半部，Host 拥有 Source 半部；两者可以共享 Adapter 私有状态，但 Source 不会直接接收或拥有 Bridge。
+
+Every start cycle supplies each Source with a fresh, identity-bound ingress handle. A Provider Event handle can publish only for its registered Provider, and a Channel Action handle can submit only for its registered Channel. Handles hold a weak Host reference, can be cloned and moved to Adapter workers, and retain the synchronous handoff semantics of the independent Sink ports. Bridge access from different threads is serialized. Synchronous re-entry from a Port callback on the thread already processing that Bridge is rejected as a structured ingress error instead of deadlocking. The Host does not add buffering or automatic retry.
+
+每次启动周期都会向各 Source 提供一个全新且绑定端点身份的入口句柄。Provider Event 句柄只能代表其注册 Provider 发布，Channel Action 句柄只能代表其注册 Channel 提交。句柄弱引用 Host，可以克隆并移动到 Adapter Worker，同时保留独立 Sink Port 的同步交接语义。不同线程对 Bridge 的访问会被串行化；若 Port 回调在当前正在处理该 Bridge 的同一线程同步重入，则以结构化入口错误拒绝，避免死锁。Host 不增加缓冲或自动重试。
+
+Host start and stop are explicit and idempotent:
+
+- Start attempts Sources in registration order. A repeated start reports `AlreadyStarted` without invoking an Adapter again.
+- One start failure revokes only that Source's current handle and does not roll back successfully started Sources or any Event already accepted into the Bridge. Because a failed start may have acquired resources, a complete stop is required before another start.
+- Stop revokes every current ingress before invoking any Adapter, then attempts Sources in reverse registration order. One stop failure does not prevent the remaining Sources from being attempted. The Host enters `StopFailed`, and another stop retries only the Sources that did not stop successfully.
+- A successful stop retains registered Ports, Session Aggregates, and active subscriptions. A later start creates new handles; handles from every earlier generation remain permanently inactive.
+- Dropping a Host without a successful explicit stop performs the same reverse-order cleanup on a best-effort basis. Only explicit stop returns lifecycle failures to the caller, and Source objects are released before the Bridge and its Ports.
+
+Host 的启动与停止是显式且幂等的：
+
+- 启动按注册顺序尝试 Source；重复启动返回 `AlreadyStarted`，不会再次调用 Adapter。
+- 单个 Source 启动失败只会撤销该 Source 当前周期的句柄，不回滚已经成功启动的 Source，也不回滚已经由 Bridge 接收的 Event。由于失败的启动可能已经获取资源，再次启动前必须先完成一次完整停止。
+- 停止会先撤销全部当前入口，再按注册逆序尝试 Source。一个停止失败不会阻止其余 Source；Host 进入 `StopFailed`，再次停止时只重试尚未成功停止的 Source。
+- 成功停止会保留已注册 Port、Session Aggregate 与活动订阅。后续启动创建新句柄，此前所有周期的旧句柄永久保持失效。
+- 若 Host 未成功显式停止便被释放，会尽力执行同样的反序清理。只有显式停止会向调用方返回生命周期失败，且 Source 对象会先于 Bridge 及其 Port 释放。
+
+Lifecycle failures identify the endpoint and start/stop phase and preserve the Adapter error as the error source. A Host-level report contains every attempted Adapter in callback order, so partial success and failure remain observable. Lifecycle governs Source execution and Source-to-Bridge ingress only: stopping does not unregister Ports, clear Bridge state, replay Event history, or automatically resynchronize a Channel.
+
+生命周期失败会标识端点与启动/停止阶段，并把 Adapter 错误保留为错误源。Host 级报告按照回调顺序包含每个尝试过的 Adapter，因此部分成功与失败均可观察。生命周期只管理 Source 执行与 Source 到 Bridge 的入口；停止不会注销 Port、清空 Bridge 状态、重放 Event 历史或自动重新同步 Channel。
+
 ## Exclusions / 不包含内容
 
-These contracts do not define adapter discovery, endpoint removal or lifecycle, subscription persistence or authorization outside the active routing membership, historical replay, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. Those concerns remain later milestones.
+These contracts do not define adapter discovery, endpoint removal, subscription persistence or authorization outside the active routing membership, historical replay or restart resynchronization, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. Those concerns remain later milestones.
 
-本契约不定义 Adapter 发现、端点移除或生命周期、订阅持久化或活动路由关系之外的鉴权、历史重放、缓冲、重试、ACK、背压、Transport、认证、Relay 行为或持久化；这些内容属于后续里程碑。
+本契约不定义 Adapter 发现、端点移除、订阅持久化或活动路由关系之外的鉴权、历史重放或重启重同步、缓冲、重试、ACK、背压、Transport、认证、Relay 行为或持久化；这些内容属于后续里程碑。

@@ -18,9 +18,9 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
-The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries and centralized capability policy are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md).
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries, centralized capability policy, multi-endpoint Bridge routing, and Runtime Host lifecycle are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md).
 
-具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界与集中 Capability 策略由[端口与能力路由](ports-and-routing.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定。
+具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界、集中 Capability 策略、Bridge 多端点路由与 Runtime Host 生命周期由[端口与能力路由](ports-and-routing.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定。
 
 For example, an approval remains an `InteractionRequest::Approval` throughout the Core. A Native Channel may render it as buttons, while a Bot Channel may present `/approve <interaction-id>` and `/reject <interaction-id>` commands.
 
