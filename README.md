@@ -18,9 +18,9 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
-The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries, centralized capability policy, multi-endpoint Bridge routing, and Runtime Host lifecycle are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned JSON representation is defined separately in [JSON Wire Protocol v1](wire-v1.md). The first concrete integration contract is the [Codex App Server Provider](codex-provider.md).
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries, centralized capability policy, multi-endpoint Bridge routing, and Runtime Host lifecycle are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned domain JSON representation is defined in [JSON Wire Protocol v1](wire-v1.md). Concrete integration contracts currently cover the [Codex App Server Provider](codex-provider.md) and [Native Transport v1](native-transport-v1.md).
 
-具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界、集中 Capability 策略、Bridge 多端点路由与 Runtime Host 生命周期由[端口与能力路由](ports-and-routing.md)定义；版本化 JSON 表示由 [JSON 线协议 v1](wire-v1.md)独立规定；首个具体接入契约为 [Codex App Server Provider](codex-provider.md)。
+具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界、集中 Capability 策略、Bridge 多端点路由与 Runtime Host 生命周期由[端口与能力路由](ports-and-routing.md)定义；版本化领域 JSON 表示由 [JSON 线协议 v1](wire-v1.md)规定；当前具体接入契约包括 [Codex App Server Provider](codex-provider.md)与 [Native Transport v1](native-transport-v1.md)。
 
 For example, an approval remains an `InteractionRequest::Approval` throughout the Core. A Native Channel may render it as buttons, while a Bot Channel may present `/approve <interaction-id>` and `/reject <interaction-id>` commands.
 
@@ -74,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-The initial channel-neutral semantics, strict JSON protocol v1, ports, capability routing, RuntimeHost lifecycle, and the read-only Codex App Server Provider contract are defined. Canonical cross-language examples are available as [Golden Fixtures](fixtures/v1).
+The channel-neutral semantics, strict JSON protocol v1, ports, capability routing, RuntimeHost lifecycle, read-only Codex App Server Provider, and complete local read-only Native Transport v1 are defined. Canonical cross-language examples are available as [domain fixtures](fixtures/v1) and [Native fixtures](fixtures/native-v1).
 
-首版与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口、集中 Capability 路由、RuntimeHost 生命周期，以及只读 Codex App Server Provider 契约已经确定；跨语言规范示例位于 [Golden Fixtures](fixtures/v1)。
+与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口、集中 Capability 路由、RuntimeHost 生命周期、只读 Codex App Server Provider，以及完整本地只读 Native Transport v1 已经确定；跨语言规范示例位于[领域 Fixtures](fixtures/v1)与 [Native Fixtures](fixtures/native-v1)。

@@ -19,9 +19,9 @@ interaction_response
 agent_command
 ```
 
-Handshake, version negotiation, acknowledgements, delivery metadata, Session lists, Aggregate synchronization, framing, compression, authentication, and transport size limits are outside v1. A Transport may impose its own size limit around an entire JSON envelope.
+Handshake, version negotiation, acknowledgements, delivery metadata, Session lists, Aggregate synchronization, framing, compression, authentication, and transport size limits are outside this domain protocol. A Transport may impose its own envelope and size limit around an entire JSON v1 envelope. The first such contract is [Native Transport v1](native-transport-v1.md), which nests these domain envelopes unchanged.
 
-握手、版本协商、ACK、投递元数据、Session 列表、Aggregate 同步、分帧、压缩、鉴权及 Transport 大小限制不属于 v1。Transport 可以对完整 JSON Envelope 施加自身的大小限制。
+握手、版本协商、ACK、投递元数据、Session 列表、Aggregate 同步、分帧、压缩、鉴权及 Transport 大小限制不属于本领域协议。Transport 可以在完整 JSON v1 Envelope 外增加自己的 Envelope 与大小限制；首个此类契约是 [Native Transport v1](native-transport-v1.md)，其中的领域 Envelope 保持不变。
 
 ## Envelope and compatibility / Envelope 与兼容性
 
