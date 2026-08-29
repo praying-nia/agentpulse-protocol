@@ -92,40 +92,48 @@ Commands never degrade to a different executable operation. Submit Prompt requir
 
 Command 不会降级成另一种可执行操作。Submit Prompt 需要 Provider `PROMPT_SUBMIT` 以及 Channel `REMOTE_COMMAND` 与 `TEXT_INPUT`；Cancel Session 需要 Provider `CANCEL` 以及 Channel `REMOTE_COMMAND`。交给 Provider 前，Command Session 与来源 Channel 必须匹配所选链路。
 
-## Minimal Bridge orchestration / Bridge 最小编排
+## Multi-endpoint Bridge orchestration / Bridge 多端点编排
 
-The minimal Bridge is one synchronous, in-memory route containing one registered Provider Port, one registered Channel Port, and any number of Session Aggregates owned by that Provider. The Bridge snapshots both endpoint descriptors at registration; dynamic descriptor changes and multi-endpoint fan-out are separate concerns.
+The Bridge is one synchronous, in-memory orchestration service containing any number of explicitly registered heterogeneous Provider and Channel Ports. Registration snapshots each Descriptor and rejects another endpoint of the same strongly typed ID. A Session is created only from a sequence-one `SessionStarted` Event and remains owned by the Provider named by that initial Session.
 
-最小 Bridge 是一条同步内存链路，包含一个已注册 Provider Port、一个已注册 Channel Port，以及任意数量归属于该 Provider 的 Session Aggregate。Bridge 在注册时保存双方 Descriptor 快照；动态 Descriptor 变更与多端点扇出属于独立问题。
+Bridge 是一个同步内存编排服务，可以显式注册任意数量、具体实现不同的 Provider 与 Channel Port。注册时会保存 Descriptor 快照，并拒绝同一强类型 ID 的重复端点。Session 只能由 sequence 为 1 的 `SessionStarted` Event 创建，并始终归属于初始 Session 标识的 Provider。
+
+A Channel receives a Session only through an explicit Session-to-Channel subscription. Both endpoints must already exist. When the Channel declares `SESSION_VIEW`, subscription first hands off the current `AgentSession` view and becomes active only after that handoff succeeds. A Channel without `SESSION_VIEW` subscribes directly to future Events. Repeating either subscribe or unsubscribe is idempotent. Subscription does not replay historical Events, and a newly started Session has no implicit subscribers.
+
+Channel 只有通过显式 Session–Channel 订阅才能接收该 Session。订阅时双方必须已经存在。若 Channel 声明 `SESSION_VIEW`，Bridge 会先交付当前 `AgentSession` 视图，且只有交接成功后订阅才生效；不支持 `SESSION_VIEW` 的 Channel 直接从后续 Event 开始接收。重复订阅与取消订阅均为幂等操作。订阅不会重放历史 Event，新创建的 Session 也没有隐式订阅者。
 
 For a Provider Event, the Bridge:
 
-1. verifies the publishing Provider identity;
-2. requires an unknown Session to begin with a sequence-one `SessionStarted` Event;
-3. computes the centralized Channel route before state mutation;
-4. creates or advances the Session Aggregate;
-5. delivers an applied Event and route to the Channel; and
-6. after `SessionStarted`, `StateChanged`, `ConnectionChanged`, or `SessionEnded`, also delivers the latest Session view when the Channel declares `SESSION_VIEW`.
+1. resolves the registered publishing Provider;
+2. resolves the current Session or validates a sequence-one `SessionStarted` Event;
+3. validates Provider ownership and publication capability;
+4. computes a centralized route for every subscribed Channel before state mutation;
+5. creates or advances the Session Aggregate exactly once; and
+6. fans the applied Event out in stable Channel-ID order, followed by the latest Session view for state-changing Events when each target declares `SESSION_VIEW`.
 
 Provider Event 进入 Bridge 后依次执行：
 
-1. 校验发布方 Provider 身份；
-2. 未知 Session 必须由 sequence 为 1 的 `SessionStarted` Event 开始；
-3. 在修改状态前计算集中 Channel Route；
-4. 创建或推进 Session Aggregate；
-5. 将已应用 Event 与 Route 交给 Channel；
-6. 对 `SessionStarted`、`StateChanged`、`ConnectionChanged` 与 `SessionEnded`，若 Channel 声明 `SESSION_VIEW`，再交付最新 Session 视图。
+1. 解析已经注册的发布方 Provider；
+2. 解析当前 Session，或校验 sequence 为 1 的 `SessionStarted` Event；
+3. 校验 Provider 归属与发布能力；
+4. 在修改状态前，为每个订阅 Channel 计算集中 Route；
+5. 只创建或推进一次 Session Aggregate；
+6. 按 Channel ID 稳定顺序扇出已应用 Event；对会改变 Session 视图的 Event，再向声明 `SESSION_VIEW` 的目标交付最新视图。
 
-An exact retry of the Aggregate's latest Event is accepted as already applied and is not delivered again. Capability or reduction failures cause neither state mutation nor Channel handoff. Once reduction succeeds, the current Aggregate is retained even if a later Channel handoff fails; the handoff error identifies whether Event or Session-view delivery failed. This milestone does not retry or roll back adapter handoffs.
+Each subscribed Channel has an independent delivery result. An Event handoff failure skips the Session-view handoff for that target but does not prevent later targets from being attempted. A Session-view failure is reported after the Event was accepted. Any partial failure returns the complete ordered target report, including successful targets. Once reduction succeeds, neither a handoff failure nor a partial fan-out rolls back the Aggregate.
 
-Aggregate 最新 Event 的精确重试按已应用处理，不重复交付。Capability 或 Reducer 失败不会修改状态，也不会触发 Channel 交接。Reducer 成功后，即使后续 Channel 交接失败，Bridge 仍保留最新 Aggregate；错误会标识失败发生于 Event 还是 Session 视图交接。本阶段不重试或回滚 Adapter 交接。
+每个订阅 Channel 都有独立的交付结果。若某目标的 Event 交接失败，则跳过该目标的 Session 视图，但不阻止后续目标继续交付；若 Session 视图失败，则 Event 已经由该目标接收。发生部分失败时，Bridge 返回包含成功与失败目标的完整有序报告。Reducer 成功后，任何交接失败或部分扇出都不会回滚 Aggregate。
 
-For a Channel Action, the Bridge resolves the current Session and its Provider, verifies the submitting Channel, and revalidates the complete capability route. An Interaction Response additionally must match a currently pending Request. Only then is the Action handed to the Provider. A successful handoff does not mutate the Aggregate or synthesize an Event: the Provider remains responsible for publishing normalized `InteractionResponded` or `CommandIssued` confirmation Events.
+An exact retry of the Aggregate's latest Event is accepted as already applied and produces no delivery attempts. Capability or reduction failures cause neither state mutation nor Channel handoff. This contract does not automatically retry failed targets.
 
-Channel Action 进入 Bridge 后，Bridge 会解析当前 Session 及其 Provider、校验提交方 Channel，并重新校验完整 Capability 链路。Interaction Response 还必须匹配当前待处理 Request，之后才能交给 Provider。交接成功不会直接修改 Aggregate 或合成 Event；Provider 仍负责发布标准化 `InteractionResponded` 或 `CommandIssued` 确认 Event。
+Aggregate 最新 Event 的精确重试按已应用处理，不触发任何交付。Capability 或 Reducer 失败不会修改状态，也不会触发 Channel 交接。本契约不会自动重试失败目标。
+
+For a Channel Action, the Bridge resolves the registered source Channel, requires its active subscription to the target Session, resolves that Session's owning Provider, and revalidates the complete capability route. An Interaction Response additionally must match a currently pending Request. Only then is the Action handed to the owning Provider. A successful handoff does not mutate the Aggregate or synthesize an Event: the Provider remains responsible for publishing normalized `InteractionResponded` or `CommandIssued` confirmation Events.
+
+Channel Action 进入 Bridge 后，Bridge 会解析已注册的来源 Channel，要求它仍订阅目标 Session，再解析该 Session 所属的 Provider，并重新校验完整 Capability 链路。Interaction Response 还必须匹配当前待处理 Request，之后才能交给所属 Provider。交接成功不会直接修改 Aggregate 或合成 Event；Provider 仍负责发布标准化 `InteractionResponded` 或 `CommandIssued` 确认 Event。
 
 ## Exclusions / 不包含内容
 
-These contracts do not define adapter discovery, dynamic registration, lifecycle, multi-Provider or multi-Channel fan-out, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. Those concerns remain later milestones.
+These contracts do not define adapter discovery, endpoint removal or lifecycle, subscription persistence or authorization outside the active routing membership, historical replay, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. Those concerns remain later milestones.
 
-本契约不定义 Adapter 发现、动态注册、生命周期、多 Provider 或多 Channel 扇出、缓冲、重试、ACK、背压、Transport、鉴权、Relay 行为或持久化；这些内容属于后续里程碑。
+本契约不定义 Adapter 发现、端点移除或生命周期、订阅持久化或活动路由关系之外的鉴权、历史重放、缓冲、重试、ACK、背压、Transport、认证、Relay 行为或持久化；这些内容属于后续里程碑。
