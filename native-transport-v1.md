@@ -18,7 +18,7 @@ The v1 server has the following fixed transport contract:
 
 | Property | Native Transport v1 |
 | --- | --- |
-| Bind boundary | IPv4 or IPv6 loopback only; default `127.0.0.1:0` |
+| Bind boundary | explicit IPv4/IPv6 loopback, or an explicit private/link-local LAN address with TLS and bearer authorization |
 | HTTP path | exactly `/agentpulse/native/v1`, without a query |
 | WebSocket subprotocol | required `agentpulse.native.v1` |
 | Application messages | UTF-8 WebSocket text messages only |
@@ -30,9 +30,13 @@ The v1 server has the following fixed transport contract:
 | Compression | not negotiated |
 | Active clients | exactly one per Native Channel instance |
 
-The operating system assigns the port when port zero is configured. Callers must obtain the actual address from the running Channel and provide it to the local client. Binding a wildcard, LAN, or public address is invalid. A second connection is upgraded only to receive a terminal `connection_busy` error and a policy close; it cannot displace the active connection.
+The operating system assigns the port when port zero is configured. Callers must obtain the actual address from the running Channel and provide it to the client. A wildcard or public address is always invalid. Loopback mode remains available for same-machine clients. LAN mode requires a leaf-and-CA TLS identity plus a live bearer authorizer and accepts only RFC 1918, IPv4 link-local, IPv6 unique-local, or IPv6 link-local bind addresses. A second authorized connection is upgraded only to receive a terminal `connection_busy` error and a policy close; it cannot displace the active connection.
 
-配置端口为零时由操作系统分配实际端口；调用方必须从运行中的 Channel 获取地址并交给本地客户端。Wildcard、LAN 或公网地址均为非法配置。第二条连接只能在 Upgrade 后接收终止性的 `connection_busy` 错误与 Policy Close，不能抢占当前连接。
+配置端口为零时由操作系统分配实际端口；调用方必须从运行中的 Channel 获取实际地址并交给客户端。Wildcard 与公网地址始终非法。Loopback 模式继续服务同机客户端；LAN 模式必须同时配置 Leaf/CA TLS 身份与实时 Bearer Authorizer，并且只能绑定 RFC 1918、IPv4 Link-local、IPv6 Unique-local 或 IPv6 Link-local 地址。第二条已认证连接只能在 Upgrade 后接收终止性的 `connection_busy` 错误与 Policy Close，不能抢占当前连接。
+
+An authenticated LAN upgrade must use the exact path and subprotocol above and include both `Authorization: Bearer <per-device-token>` and `X-AgentPulse-Client-Id: <UUIDv7>`. The authenticated client ID must equal the subsequent `client_hello.client_id`. Authorization is rechecked during the live connection, so Host-side revocation terminates an already connected device. TLS clients validate the stable Host DNS name against the app-scoped CA learned through [Pairing v1](pairing-v1.md); pairing itself initially pins the advertised leaf SHA-256.
+
+通过 LAN 建立连接时，Upgrade 必须使用上述精确 Path 与 Subprotocol，并同时携带 `Authorization: Bearer <per-device-token>` 和 `X-AgentPulse-Client-Id: <UUIDv7>`。已认证 Client ID 必须与后续 `client_hello.client_id` 完全一致。活动连接期间会持续复核授权，因此 Host 端撤销设备后，已连接设备也会断开。TLS Client 使用 [Pairing v1](pairing-v1.md) 获取的应用内 CA 校验稳定 Host DNS Name；配对连接首次使用公布的 Leaf SHA-256 Pin。
 
 Binary application messages are protocol errors. WebSocket Ping, Pong, Close and fragmentation are transport details: the application codec receives only complete text messages. A message over the configured limit terminates that connection. Queue overflow also terminates the slow client instead of silently dropping, reordering, or retaining an unbounded backlog.
 
@@ -246,9 +250,9 @@ Stopping or dropping the Channel Source revokes its RuntimeHost generation befor
 
 ## Security and exclusions / 安全边界与不包含内容
 
-Loopback binding is the v1 security boundary. Native v1 defines no LAN exposure, pairing, authentication, authorization token, TLS, origin policy, public-network connection, or Relay tunneling. Applications must not broaden the listener to make it remotely reachable. A future remotely reachable transport requires an explicit authenticated protocol milestone.
+Native v1 has two explicit security boundaries: operating-system loopback isolation for same-machine clients, and authenticated TLS for private-LAN clients. LAN credentials are per device, stored only as hashes on the Host, revocable while active, and provisioned only through [Pairing v1](pairing-v1.md). Native v1 still defines no wildcard/public-network exposure, browser Origin authorization, Internet endpoint, or Relay tunneling. Implementations must fail closed when the credential store, certificate, client binding, or private-address validation fails.
 
-Loopback Bind 是 v1 的安全边界。Native v1 不定义 LAN 暴露、配对、认证、授权 Token、TLS、Origin Policy、公网连接或 Relay Tunnel。应用不得通过扩大监听范围使该端点可被远程访问；任何可远程访问的 Transport 都必须作为独立的带认证协议里程碑设计。
+Native v1 具有两种显式安全边界：同机客户端依赖操作系统 Loopback 隔离，私有 LAN 客户端使用带认证 TLS。LAN 凭证按设备独立签发，Host 仅保存 Hash，可在活动连接期间撤销，并且只能通过 [Pairing v1](pairing-v1.md)下发。Native v1 仍不定义 Wildcard/公网暴露、浏览器 Origin 授权、Internet Endpoint 或 Relay Tunnel。凭证库、证书、Client 绑定或私网地址校验失败时，实现必须 Fail Closed。
 
 This contract also excludes persistence, historical Event replay, offline queues, acknowledgements, automatic retry, multiple concurrent clients, Native UI behavior, Provider write-back, and database dependencies. Those exclusions do not weaken the local read-only path: discovery, cursor-safe baseline synchronization, live delivery, cleanup, bounded failure, and explicit reconnection are all required v1 behavior.
 
