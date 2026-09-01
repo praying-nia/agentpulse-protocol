@@ -1,0 +1,7 @@
+{
+  "relay_version": 1,
+  "message": {
+    "type": "tunnel_ready",
+    "peer_connection_id": "018f10a1-1e21-7a20-8f44-50aab68ae828"
+  }
+}

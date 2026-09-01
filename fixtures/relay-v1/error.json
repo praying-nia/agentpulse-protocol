@@ -1,0 +1,9 @@
+{
+  "relay_version": 1,
+  "message": {
+    "type": "error",
+    "code": "host_unavailable",
+    "message": "Host is unavailable",
+    "recoverable": true
+  }
+}

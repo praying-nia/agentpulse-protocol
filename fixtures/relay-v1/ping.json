@@ -1,0 +1,7 @@
+{
+  "relay_version": 1,
+  "message": {
+    "type": "ping",
+    "ping_id": "018f10a2-474c-721e-8f15-9de88cf895a2"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "relay_version": 1,
+  "message": {
+    "type": "host_waiting",
+    "connection_id": "018f10a1-1e20-77d2-9d90-80ab2f45a711"
+  }
+}

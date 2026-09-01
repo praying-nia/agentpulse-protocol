@@ -18,7 +18,7 @@ The protocol is channel-neutral: it describes what happened and what response is
 - Completion, failure, cancellation, and connectivity states / 完成、失败、取消与连接状态。
 - Provider identity and negotiated Provider/Channel capabilities / Provider 身份与协商后的 Provider/Channel 能力。
 
-The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries, centralized capability policy, multi-endpoint Bridge routing, and Runtime Host lifecycle are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned domain JSON representation is defined in [JSON Wire Protocol v1](wire-v1.md). Concrete integration contracts currently cover the [Codex App Server Provider](codex-provider.md) and [Native Transport v1](native-transport-v1.md).
+The semantic contract and its invariants are defined in [Unified Domain Model](domain-model.md). Runtime-neutral adapter boundaries, centralized capability policy, multi-endpoint Bridge routing, and Runtime Host lifecycle are defined in [Ports and Capability Routing](ports-and-routing.md). The versioned domain JSON representation is defined in [JSON Wire Protocol v1](wire-v1.md). Concrete integration contracts currently cover the [Codex App Server Provider](codex-provider.md), [Native Transport v1](native-transport-v1.md), and the optional end-to-end encrypted [Relay v1](relay-v1.md).
 
 具体语义及其不变量由[统一领域模型](domain-model.md)定义；运行时中立的 Adapter 边界、集中 Capability 策略、Bridge 多端点路由与 Runtime Host 生命周期由[端口与能力路由](ports-and-routing.md)定义；版本化领域 JSON 表示由 [JSON 线协议 v1](wire-v1.md)规定；当前具体接入契约包括 [Codex App Server Provider](codex-provider.md)与 [Native Transport v1](native-transport-v1.md)。
 
@@ -74,6 +74,6 @@ The `agentpulse-protocol` crate in `agentpulse-rs` will provide the Rust impleme
 
 ## Status / 状态
 
-The channel-neutral semantics, strict JSON protocol v1, ports, capability routing, RuntimeHost lifecycle, read-only Codex App Server Provider, complete read-only Native Transport v1, and secure local [Pairing v1](pairing-v1.md) are defined. Canonical cross-language examples are available as [domain fixtures](fixtures/v1), [Native fixtures](fixtures/native-v1), and [Pairing fixtures](fixtures/pairing-v1).
+The channel-neutral semantics, strict JSON protocol v1, ports, capability routing, RuntimeHost lifecycle, read-only Codex App Server Provider, complete read-only Native Transport v1, secure local [Pairing v1](pairing-v1.md), and optional opaque [Relay v1](relay-v1.md) are defined. Canonical cross-language examples are available as [domain fixtures](fixtures/v1), [Native fixtures](fixtures/native-v1), [Pairing fixtures](fixtures/pairing-v1), and [Relay fixtures](fixtures/relay-v1).
 
 与 Channel 无关的领域语义、严格 JSON 协议 v1、Provider/Channel 独立端口、集中 Capability 路由、RuntimeHost 生命周期、只读 Codex App Server Provider、完整只读 Native Transport v1，以及安全本地 [Pairing v1](pairing-v1.md)已经确定；跨语言规范示例位于[领域 Fixtures](fixtures/v1)、[Native Fixtures](fixtures/native-v1)与 [Pairing Fixtures](fixtures/pairing-v1)。

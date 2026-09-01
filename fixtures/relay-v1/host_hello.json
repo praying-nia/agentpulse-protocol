@@ -1,0 +1,14 @@
+{
+  "relay_version": 1,
+  "message": {
+    "type": "host_hello",
+    "host_id": "018f10a0-fd57-7c08-bb2a-9b61c761a62f",
+    "routes": [
+      {
+        "route_id": "aCqsldNQU3q4F4wpLIb_VHzyh51lR6SwzzuK9dno5Mk",
+        "authentication_key": "hVBZB_Ak8IDNLGAsJuLi4G_Jhdv1WwnK7YPikP0EGhE"
+      }
+    ],
+    "proof": "ZI8B-3lR_2n6C7kmCoImDlzr-zepmT6Qi3FpaNNBiTc"
+  }
+}
