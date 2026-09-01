@@ -1,8 +1,9 @@
 # AgentPulse Relay v1
 
-Relay v1 is an optional, read-only public path for Native Transport v1. LAN and
-mDNS remain the default. A client uses Relay only after the user manually stores
-an endpoint in its paired Host profile and explicitly selects that route.
+Relay v1 is a read-only public path for Native Transport v1 and the required
+transport for QR-only first pairing. A successful QR pairing stores and selects
+its authenticated Relay endpoint. A paired client may still explicitly select
+LAN later; there is no silent route fallback.
 
 Relay terminates a publicly trusted outer TLS connection, authenticates a Host
 registration and a paired-client route, then becomes an opaque byte pump. The
@@ -29,14 +30,15 @@ All HMAC operations use HMAC-SHA-256. `||` denotes byte concatenation. Text is
 UTF-8, UUIDs are their 16 network-order bytes, integers are big-endian, and all
 32-byte wire values use unpadded Base64URL.
 
-The Android client and Host already share a device-specific Native bearer Token.
-Relay never receives it. Both derive:
+The endpoint peers share a route secret that Relay never receives. Stable Native
+routes use the device-specific Native bearer Token; ephemeral QR pairing routes
+use the QR bootstrap Token. Both derive:
 
 ```text
-device_root = SHA-256(native_bearer_token UTF-8)
-route_id = HMAC(device_root,
+route_root = SHA-256(route_secret UTF-8)
+route_id = HMAC(route_root,
   "agentpulse.relay.v1.route\0" || endpoint_authority)
-client_auth_key = HMAC(device_root,
+client_auth_key = HMAC(route_root,
   "agentpulse.relay.v1.client-auth\0" || endpoint_authority)
 ```
 
@@ -69,7 +71,9 @@ host_proof = HMAC(host_auth_key,
   (route_id_32 || client_auth_key_32) repeated)
 ```
 
-After verification, Relay sends `HostWaiting`. It sends a UUIDv7 `Ping` after
+After verification, Relay installs one of at most four concurrent Host
+registrations. Their route IDs must be disjoint. Relay sends `HostWaiting`, then
+sends a UUIDv7 `Ping` after
 15 seconds without a client; Host must return the matching `Pong` within five
 seconds. A changed paired-device set closes and refreshes the registration.
 
@@ -79,10 +83,12 @@ A client sends:
 client_proof = HMAC(client_auth_key, prefix(2) || route_id_32)
 ```
 
-Relay atomically claims the matching waiting Host and sends each peer one
-`TunnelReady`. There is one waiting Host slot, at most 16 routes, and at most 32
-unauthenticated outer connections per Relay process. Route registrations are
-memory-only and disappear on restart.
+Relay atomically claims the matching waiting Host registration and sends each
+peer one `TunnelReady`. There are at most four waiting Host registrations, at
+most 16 routes per registration, and at most 32 outer connections per Relay
+process. Separate registrations allow a stable Native route set and a
+short-lived QR pairing route to coexist. Route registrations are memory-only
+and disappear on restart.
 
 ## Tunnel limits and failures
 
@@ -99,4 +105,3 @@ was wrong. The Host treats all Relay failures as optional-path health failures;
 they never stop the LAN Native listener.
 
 Canonical, non-production test vectors are in [`fixtures/relay-v1`](fixtures/relay-v1).
-

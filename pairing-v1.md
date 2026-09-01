@@ -2,15 +2,15 @@
 
 ## Scope / 范围
 
-Pairing v1 is the complete local bootstrap from an untrusted Android installation to one authenticated, read-only Native Transport device identity. It transfers no Session or Event data. A pairing session is one-shot, expires after two minutes, permits at most five requests, and requires explicit confirmation on the Host terminal.
+Pairing v1 is the complete QR-only public bootstrap from an untrusted Android installation to one authenticated, read-only Native Transport device identity. It transfers no Session or Event data. A pairing session is one-shot, expires after two minutes, permits at most five requests, and requires explicit confirmation on the Host terminal. USB, ADB, Bluetooth, and a shared LAN are not pairing dependencies.
 
-Pairing v1 是从未受信任 Android 安装到已认证、只读 Native Transport 设备身份的完整本地 Bootstrap。它不传输 Session 或 Event 数据。每个配对会话仅可成功一次、两分钟后过期、最多接收五次请求，并且必须由用户在 Host 终端明确确认。
+Pairing v1 是从未受信任 Android 安装到已认证、只读 Native Transport 设备身份的完整纯二维码公网 Bootstrap。它不传输 Session 或 Event 数据。每个配对会话仅可成功一次、两分钟后过期、最多接收五次请求，并且必须由用户在 Host 终端明确确认。配对不依赖 USB、ADB、蓝牙或共享局域网。
 
 ## Discovery bundle / 发现包
 
-The Host exposes the same URI through a secure BLE GATT characteristic and a terminal QR fallback:
+The Host prints exactly one terminal QR code containing this URI after its ephemeral route is waiting on the configured public Relay:
 
-Host 通过安全 BLE GATT Characteristic 与终端 QR 备用路径暴露同一个 URI：
+Host 仅在临时路由已于配置的公网 Relay 上等待后，打印一个包含以下 URI 的终端二维码：
 
 ```text
 agentpulse://pair/v1/<base64url-without-padding(JSON)>
@@ -25,26 +25,32 @@ The decoded JSON object has exactly these fields:
 | `host_id` | stable canonical UUIDv7 |
 | `host_name` | nonblank user-facing name |
 | `server_name` | stable TLS DNS name |
-| `address`, `port` | current private LAN pairing endpoint |
+| `address`, `port` | private inner pairing target; normally Host loopback and never dialed directly by Android |
 | `leaf_sha256` | exactly 64 lowercase hexadecimal characters |
 | `bootstrap_token` | random single-use secret |
+| `relay_endpoint` | canonical lowercase ASCII public Relay DNS authority `host:port` |
 | `expires_at_unix_seconds` | positive UTC Unix seconds |
 
-Unknown fields, malformed JSON/scalars, unsupported versions, invalid UUIDs/fingerprints, and expired bundles are rejected. BLE advertises service UUID `d22e50f9-015e-53ba-be49-3e4d235f3288`; the URI is read from characteristic `ea63bfc9-87c3-5074-aa37-49b6a617569b`. BLE access requires an authenticated encrypted link and operating-system association. BLE carries only this bootstrap URI; all request and credential delivery uses pinned WSS.
+Unknown fields, missing fields, malformed JSON/scalars, unsupported versions, invalid UUIDs/fingerprints/Relay authorities, and expired bundles are rejected. There is no BLE advertisement, nearby pairing, deep-link pairing, or printed manual URI. Possession of the QR is possession of the short-lived bootstrap capability, but credentials are issued only after Host-terminal approval.
 
-未知字段、错误 JSON/Scalar、未知版本、非法 UUID/指纹及过期 Bundle 均被拒绝。BLE 使用 Service UUID `d22e50f9-015e-53ba-be49-3e4d235f3288`，并从 Characteristic `ea63bfc9-87c3-5074-aa37-49b6a617569b` 读取 URI。BLE 访问要求经过认证的加密链路及操作系统 Association。BLE 只承载 Bootstrap URI；请求与凭证下发全部通过 Pinned WSS 完成。
+未知字段、缺失字段、错误 JSON/Scalar、未知版本、非法 UUID/指纹/Relay Authority 及过期 Bundle 均被拒绝。协议不提供 BLE 广播、附近配对、Deep Link 配对或打印的手工 URI。持有二维码即持有短时 Bootstrap Capability，但 Host 仅在终端确认后签发设备凭证。
 
 ## WebSocket / WebSocket
 
 | Property | Pairing v1 |
 | --- | --- |
-| Bind boundary | explicit private/link-local LAN address only |
+| Host bind boundary | loopback-only ephemeral listener |
+| Public path | authenticated Relay v1 outer TLS tunnel derived from the QR bootstrap Token |
 | TLS trust | exact leaf DER SHA-256 from the discovery bundle |
 | HTTP path | exactly `/agentpulse/pair/v1`, without a query |
 | WebSocket subprotocol | required `agentpulse.pair.v1` |
 | Messages | UTF-8 text only, maximum 16 KiB |
 | Attempts | at most five per session |
 | Lifetime | two minutes, one successful issuance |
+
+For the pairing route, both Host and Android compute `pairing_root = SHA-256(bootstrap_token UTF-8)` and apply the endpoint-bound Relay v1 `route_id` and `client_auth_key` derivations. The Host authenticates the ephemeral registration with its existing Relay enrollment key. Relay sees only the derived route and opaque inner TLS bytes; it never receives the QR bootstrap Token, pairing request, issued bearer Token, or Host CA. Stable Native routes and one ephemeral pairing route may wait concurrently as disjoint authenticated Host registrations.
+
+对于配对路由，Host 与 Android 都计算 `pairing_root = SHA-256(bootstrap_token UTF-8)`，随后使用 Relay v1 的端点绑定 `route_id` 与 `client_auth_key` 派生。Host 使用既有 Relay Enrollment Key 认证临时注册。Relay 只能看到派生路由和不透明的内层 TLS 字节，无法得到二维码 Bootstrap Token、配对请求、签发的 Bearer Token 或 Host CA。稳定 Native 路由与一个临时配对路由可作为互不重叠的认证 Host 注册同时等待。
 
 Every message uses `{ "pairing_version": 1, "message": { ... } }` and rejects unknown fields.
 

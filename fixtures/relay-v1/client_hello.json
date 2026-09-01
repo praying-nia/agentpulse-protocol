@@ -2,7 +2,7 @@
   "relay_version": 1,
   "message": {
     "type": "client_hello",
-    "route_id": "aCqsldNQU3q4F4wpLIb_VHzyh51lR6SwzzuK9dno5Mk",
-    "proof": "5GTj5v2L17ruKW7gkNVZAlwuwo309RR8sYYF2U8FoIk"
+    "route_id": "zHRMqKXGm1oRWx0q8MCJ5jQggwqVtIcG1TkfyS6Oa9w",
+    "proof": "edqSJq5Swq3tbEBrgcsFnG6wlJL_8K5xBKdr8pDWvhg"
   }
 }

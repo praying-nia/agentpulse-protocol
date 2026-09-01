@@ -1,8 +1,8 @@
 {
-  "endpoint": "relay.example.com:19191",
+  "endpoint": "relay.example.com:2333",
   "device_token": "fixture-device-token",
   "device_root": "oGfzrDgiYXwMlMpR_Ak4u18jLK62P3GBWMnnpTLeA6k",
-  "route_id": "aCqsldNQU3q4F4wpLIb_VHzyh51lR6SwzzuK9dno5Mk",
-  "client_authentication_key": "hVBZB_Ak8IDNLGAsJuLi4G_Jhdv1WwnK7YPikP0EGhE",
+  "route_id": "zHRMqKXGm1oRWx0q8MCJ5jQggwqVtIcG1TkfyS6Oa9w",
+  "client_authentication_key": "U3lobEe7CoJfP8q2lbSX-2TyS_XHlmM5DJX7RPS601c",
   "host_enrollment_token": "fixture-host-enrollment-token"
 }
