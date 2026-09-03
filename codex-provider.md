@@ -1,8 +1,8 @@
 # Codex App Server Provider Contract
 
-This document defines the canonical AgentPulse mapping for Codex observation and command/file approval write-back. It is a Provider-private integration contract; it does not expose Codex decision payloads on the public wire.
+This document defines the canonical AgentPulse mapping for Codex observation, approvals, structured user input, and bounded remote control. Provider-private Codex decision payloads are not exposed on the public wire.
 
-本文定义 Codex 观察以及命令/文件审批回写的权威映射。该协议属于 Provider 私有集成边界，不会把 Codex Decision Payload 暴露到公共线协议。
+本文定义 Codex 观察、审批、结构化用户输入与有界远程控制的权威映射。Provider 私有的 Codex Decision Payload 不会暴露到公共线协议。
 
 ## Integration boundary / 接入边界
 
@@ -44,6 +44,7 @@ Each configured Codex thread ID must be a UUIDv7 and is reused as the AgentPulse
 | `item/started`, `item/fileChange/patchUpdated` | Runtime-only item detail cache used to present the exact command or latest complete file diff |
 | `item/commandExecution/requestApproval` | Structured command/network approval with all decisions actually accepted by the pinned Codex schema |
 | `item/fileChange/requestApproval` | Structured file changes, exact diffs, requested grant root, and all accepted file decisions |
+| `item/tool/requestUserInput` | One atomic form preserving field order, choices, Other/free-text support, blocking state, and secret display policy |
 | `serverRequest/resolved` | `InteractionResponded` after an AgentPulse answer was written, otherwise `InteractionClosed(ResolvedElsewhere)` |
 | Completed nonblank `agentMessage` item | Baseline informational `Message`; `final_answer` is preferred over commentary for the outcome summary |
 | Completed turn | `SessionEnded(Completed)`, `Cancelled`, or `Failed` using the native terminal status and error |
@@ -51,14 +52,17 @@ Each configured Codex thread ID must be a UUIDv7 and is reused as the AgentPulse
 
 Event sequences are contiguous per Session. A sequence advances after Bridge state accepts the event, including the case where later Channel fan-out partially fails. Exact repeated item/turn notifications are bounded and deduplicated. Notifications for conflicting simultaneous turn IDs are terminal semantic failures rather than guessed reordering.
 
-## Approval and history policy / 审批与历史策略
+## Interaction, command, and history policy / 交互、指令与历史策略
 
-- The descriptor declares `SESSION_STATE`, `APPROVAL_REQUEST`, and `APPROVAL_RESPONSE`. `AgentCommand` remains unsupported.
-- Supported App Server requests are exactly `item/commandExecution/requestApproval` and `item/fileChange/requestApproval`. An unsupported request on the Provider observer receives JSON-RPC `-32601`; a request on a proxied desktop route remains transparent for that desktop client to handle.
+- The descriptor declares session state, approval request/response, user-input request/response, prompt submission, cancellation, and control capabilities.
+- Supported App Server interactions are `item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, and `item/tool/requestUserInput`. An unsupported request on the Provider observer receives JSON-RPC `-32601`; a request on a proxied desktop route remains transparent for that desktop client to handle.
 - Public approval options use freshly generated opaque IDs. A private runtime-only map binds each ID to one exact Codex decision: `accept`, `acceptForSession`, `decline`, `cancel`, or a supplied exec/network policy amendment. A Channel cannot synthesize or alter that decision object.
 - An approval request is still forwarded to the desktop client as a fallback. AgentPulse records which proxy route owns it and writes a phone selection only to that route's upstream WebSocket; request IDs from different clients never alias.
 - An approval has no AgentPulse deadline. It remains pending until Codex confirms `serverRequest/resolved`, the desktop client resolves it, its item/turn/thread ends, its owning proxy disconnects, or the Provider stops. AgentPulse never guesses approval or rejection.
 - Command, cwd, reason, network host/protocol, paths, change kinds, and exact diffs are preserved. Requests missing safe presentation details or exceeding the 256 KiB presentation bound are explicitly read-only with a reason and no response options.
-- At most 64 approvals and 64 queued responses exist per Provider runtime. They are memory-only and disappear when that runtime stops.
-- Turns included inside `thread/resume` are not replayed. The resume response establishes the current Session snapshot; only subsequent notifications enter the AgentPulse event sequence.
+- A user-input response answers every form field exactly once. Unknown choices, missing fields, duplicate fields, and text for fields without Other/free-text support are rejected. Secret answers exist only in the outbound response until it is written to Codex; pending/resolved Provider state does not retain them.
+- Common typed commands cover queued prompts and explicit steer, stop, model selection/catalog, Plan mode, thread list/resume/new, compact, review, rename, fork, status, permission profiles, and queue pause/resume/clear. They map only to generated-schema-validated App Server calls.
+- Prompt queues are process-memory FIFO, limited to 32 items per Session, 64 KiB per item, and 1 MiB in total. `stop` preserves and pauses the queue. A rejected `turn/start` preserves the head item and pauses draining until an explicit queue resume.
+- At most 64 interactions/responses and 64 control commands exist per Provider runtime. They are memory-only and disappear when that runtime stops.
+- Remote `/resume` first establishes the current Session snapshot, then calls `thread/items/list` in ascending pages until `nextCursor` is absent. User and assistant message history enters the current Host run once; reopening an already tracked thread does not duplicate it. `/resume` listings preserve newest-first order within two groups, placing the current working directory first.
 - Automatic thread discovery may follow runtime-opened threads, but neither configured thread IDs nor pending approvals are persisted. Network Transport, Channel behavior, Relay, database, and offline history remain outside this Provider contract.

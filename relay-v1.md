@@ -1,13 +1,13 @@
 # AgentPulse Relay v1
 
-Relay v1 is an opaque bidirectional public path for Native Transport v1 and the required
+Relay v1 is an opaque bidirectional public path for Native Transport v3 and the required
 transport for QR-only first pairing. A successful QR pairing stores and selects
 its authenticated Relay endpoint. A paired client may still explicitly select
 LAN later; there is no silent route fallback.
 
 Relay terminates a publicly trusted outer TLS connection, authenticates a Host
 registration and a paired-client route, then becomes an opaque byte pump. The
-existing Host-CA TLS and Native v1 WebSocket run inside the pump. Consequently,
+existing Host-CA TLS and Native v3 WebSocket run inside the pump. Consequently,
 Relay can observe connection metadata and byte counts, but it cannot decode the
 inner Native bearer Token, Session/Event messages, or Host certificate identity.
 
@@ -94,7 +94,7 @@ and disappear on restart.
 
 Each direction has a fixed 64 KiB userspace buffer. An opaque tunnel closes after
 60 seconds without bytes in either direction or after ten seconds of an
-undrainable full buffer. Native v1 retains its own 1 MiB inner message limit and
+undrainable full buffer. Native v3 retains its own 1 MiB inner message limit and
 authorization rules. Revoking a device is therefore enforced by the Host even
 during the bounded Relay route-refresh interval.
 

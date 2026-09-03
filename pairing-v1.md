@@ -62,7 +62,7 @@ Client 发送一条 `pair_request`，包含匹配的 `pairing_id` 与 `bootstrap
 
 After approval, `pairing_succeeded` returns the stable Host identity/name, Base64 DER app-scoped CA, stable TLS server name, current Native address/port, a random per-device bearer token, Native Transport version `1`, and supported domain protocol versions. The client validates the Host identity against the discovery bundle and persists only this Host credential material in OS-protected storage. It never persists Session/Event data.
 
-批准后，`pairing_succeeded` 返回稳定 Host 身份/名称、Base64 DER 应用内 CA、稳定 TLS Server Name、当前 Native 地址/端口、随机的每设备 Bearer Token、Native Transport 版本 `1` 及支持的领域协议版本。Client 必须将 Host Identity 与 Discovery Bundle 对照，并且只在操作系统保护存储中持久化这组 Host 凭证；不得持久化 Session/Event 数据。
+批准后，`pairing_succeeded` 返回稳定 Host 身份/名称、Base64 DER 应用内 CA、稳定 TLS Server Name、当前 Native 地址/端口、随机的每设备 Bearer Token、Native Transport 版本 `3` 及支持的领域协议版本。Client 必须将 Host Identity 与 Discovery Bundle 对照，并且只在操作系统保护存储中持久化这组 Host 凭证；不得持久化 Session/Event 数据。
 
 `pairing_error` uses one of `invalid_request`, `invalid_credential`, `expired`, `used`, `denied`, `capacity`, or `internal`, plus a bounded message and `recoverable`. Denial, expiry, use, and successful issuance are terminal. Invalid requests/credentials consume an attempt and never reveal which secret component differed.
 

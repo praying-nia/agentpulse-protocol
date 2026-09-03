@@ -1,26 +1,26 @@
-# AgentPulse Native Transport v1 / Native 传输协议 v1
+# AgentPulse Native Transport v3 / Native 传输协议 v3
 
 ## Status and scope / 状态与范围
 
-This document is the canonical contract between the Rust Native Channel and an AgentPulse native client. Native Transport v1 provides authenticated Session/Event synchronization plus command-execution and file-change approval responses.
+This document is the canonical contract between the Rust Native Channel and an AgentPulse native client. Native Transport v3 provides authenticated, resumable Session/Event synchronization, atomic form responses, and bounded remote commands.
 
-本文档是 Rust Native Channel 与 AgentPulse 原生客户端之间的权威契约。Native Transport v1 提供带认证的 Session/Event 同步，以及命令执行与文件修改审批回写。
+本文档是 Rust Native Channel 与 AgentPulse 原生客户端之间的权威契约。Native Transport v3 提供带认证、可续传的 Session/Event 同步、原子表单响应与有界远程指令。
 
-Native Transport is separate from the channel-neutral [JSON Wire Protocol v1](wire-v1.md). Control messages and delivery metadata use the envelope defined here; every `domain` value is an unchanged, independently valid JSON Wire v1 envelope.
+Native Transport is separate from the channel-neutral [JSON Wire Protocol v2](wire-v2.md). Control messages and delivery metadata use the envelope defined here; every `domain` value is an unchanged, independently valid JSON Wire v2 envelope.
 
-Native Transport 与 Channel-neutral 的 [JSON 线协议 v1](wire-v1.md)相互独立。控制消息及投递元数据使用本文定义的 Envelope；每个 `domain` 值都是未经改写、可独立校验的 JSON Wire v1 Envelope。
+Native Transport 与 Channel-neutral 的 [JSON 线协议 v2](wire-v2.md)相互独立。控制消息及投递元数据使用本文定义的 Envelope；每个 `domain` 值都是未经改写、可独立校验的 JSON Wire v2 Envelope。
 
 ## WebSocket endpoint / WebSocket 端点
 
-The v1 server has the following fixed transport contract:
+The v3 server has the following fixed transport contract:
 
-首版服务端使用以下固定传输契约：
+v3 服务端使用以下固定传输契约：
 
-| Property | Native Transport v1 |
+| Property | Native Transport v3 |
 | --- | --- |
 | Bind boundary | explicit IPv4/IPv6 loopback, or an explicit private/link-local LAN address with TLS and bearer authorization |
-| HTTP path | exactly `/agentpulse/native/v1`, without a query |
-| WebSocket subprotocol | required `agentpulse.native.v1` |
+| HTTP path | exactly `/agentpulse/native/v3`, without a query |
+| WebSocket subprotocol | required `agentpulse.native.v3` |
 | Application messages | UTF-8 WebSocket text messages only |
 | Default complete-message limit | 1 MiB (`1048576` bytes) |
 | Default outbound queue | 256 complete application messages |
@@ -50,7 +50,7 @@ Every Native control or delivery message has this outer envelope:
 
 ```json
 {
-  "native_transport_version": 1,
+  "native_transport_version": 3,
   "message": {
     "type": "discover_sessions",
     "request_id": "01890f47-7c00-7000-8000-000000000005"
@@ -58,19 +58,19 @@ Every Native control or delivery message has this outer envelope:
 }
 ```
 
-- `native_transport_version` is the JSON unsigned integer `1`; all other values are rejected before message decoding.
+- `native_transport_version` is the JSON unsigned integer `3`; all other values are rejected before message decoding.
 - Every Native object rejects unknown fields, message types, enum values, and malformed scalar types.
 - Client, connection, and request identities are canonical lowercase UUIDv7 strings.
 - Event cursors are canonical unsigned decimal strings and must satisfy the domain `EventSequence` invariant.
 - Optional values are omitted by canonical encoders when absent; decoders also accept JSON `null` for optional fields.
-- Native v1 selects only AgentPulse JSON Wire protocol version `1`.
+- Native v3 selects only AgentPulse JSON Wire protocol version `2`.
 
-- `native_transport_version` 是 JSON 无符号整数 `1`；其他值在解码消息前即被拒绝。
+- `native_transport_version` 是 JSON 无符号整数 `3`；其他值在解码消息前即被拒绝。
 - 所有 Native Object 都拒绝未知字段、消息类型、枚举值及错误 Scalar 类型。
 - Client、Connection 与 Request ID 均为规范小写 UUIDv7 字符串。
 - Event Cursor 使用规范无符号十进制字符串，并且必须满足领域 `EventSequence` 不变量。
 - Optional 值为空时由规范编码器省略；解码器也接受 JSON `null`。
-- Native v1 只选择 AgentPulse JSON Wire 协议版本 `1`。
+- Native v3 只选择 AgentPulse JSON Wire 协议版本 `2`。
 
 Any field, message, or behavior added to this strict contract requires a new Native Transport version. Supporting a future domain protocol version does not implicitly change the Native Transport version.
 
@@ -90,13 +90,17 @@ The first application message must be exactly one `client_hello`:
   "client_id": "01890f47-7c00-7000-8000-000000000004",
   "display_name": "Fixture Native Client",
   "version": "1.0.0",
-  "supported_protocol_versions": [1]
+  "supported_protocol_versions": [2],
+  "host_run_id": "01890f47-7c00-7000-8000-000000000011",
+  "session_cursors": [
+    { "session_id": "01890f47-7c00-7000-8000-000000000003", "last_sequence": "7" }
+  ]
 }
 ```
 
-`display_name` and an included `version` must be nonblank. The protocol-version array must be nonempty and unique and must contain `1`. A missing, repeated, late, or incompatible Hello is fatal.
+`display_name` and an included `version` must be nonblank. The protocol-version array must be nonempty and unique and must contain `2`. `host_run_id` identifies the Host run represented by the client's in-memory cache; its Session cursors are positive, unique, contiguous last-applied sequences. Missing cached state omits both fields. A missing, repeated, late, or incompatible Hello is fatal.
 
-`display_name` 与存在的 `version` 必须非空白；协议版本数组必须非空且不重复，并包含 `1`。缺失、重复、迟到或不兼容的 Hello 都会终止连接。
+`display_name` 与存在的 `version` 必须非空白；协议版本数组必须非空且不重复，并包含 `2`。`host_run_id` 标识客户端内存缓存所属的 Host 运行周期，Session Cursor 是正数、唯一且连续应用的最后序号；没有缓存时两者均省略。缺失、重复、迟到或不兼容的 Hello 都会终止连接。
 
 ### `discover_sessions`
 
@@ -141,14 +145,14 @@ Unsubscription is idempotent. Once its result is queued, later Events for that S
 
 ### `submit_interaction_response`
 
-An actively subscribed client may submit one nested JSON Wire v1 `interaction_response`:
+An actively subscribed client may submit one nested JSON Wire v2 `interaction_response`:
 
 ```json
 {
   "type": "submit_interaction_response",
   "request_id": "01890f47-7c00-7000-8000-000000000005",
   "response": {
-    "protocol_version": 1,
+    "protocol_version": 2,
     "message": {
       "type": "interaction_response",
       "payload": {
@@ -163,21 +167,51 @@ An actively subscribed client may submit one nested JSON Wire v1 `interaction_re
 }
 ```
 
-The nested Channel ID must identify this Native Channel, the Session must be actively subscribed, the interaction must still be pending, and the opaque option ID must be one offered by that request. Native v1 does not add text/choice input, prompt submission, or standalone Session cancellation; a Provider-issued approval option may itself reject and cancel the current turn.
+The nested Channel ID must identify this Native Channel, the Session must be actively subscribed, and the interaction must still be pending. Approval and choice IDs must belong to the request. Forms submit every field atomically; secret values are forwarded once and then discarded by the Provider runtime.
 
-已活动订阅的客户端可以提交一条嵌套 JSON Wire v1 `interaction_response`。其中 Channel ID 必须是当前 Native Channel，Session 必须已订阅，Interaction 仍须 pending，且不透明 Option ID 必须来自该请求。Native v1 尚不增加文本/选择输入、Prompt 提交或独立的 Session 取消命令；Provider 签发的审批 Option 本身仍可表示“拒绝并取消当前 Turn”。
+已活动订阅的客户端可以提交一条嵌套 JSON Wire v2 `interaction_response`。其中 Channel ID 必须是当前 Native Channel，Session 必须已订阅，Interaction 仍须 pending；审批和选择 ID 必须来自该请求。表单一次提交全部字段；敏感值只向 Provider 转发一次，随后即从运行时丢弃。
+
+### `submit_command`
+
+An actively subscribed client may submit one nested JSON Wire v2 `agent_command` whose Channel and Session identify the current Native route:
+
+```json
+{
+  "type": "submit_command",
+  "request_id": "01890f47-7c00-7000-8000-000000000005",
+  "command": {
+    "protocol_version": 2,
+    "message": {
+      "type": "agent_command",
+      "payload": {
+        "id": "01890f47-7c00-7000-8000-00000000000b",
+        "session_id": "01890f47-7c00-7000-8000-000000000003",
+        "channel_id": "01890f47-7c00-7000-8000-000000000002",
+        "issued_at": "2026-09-03T00:00:00Z",
+        "payload": { "type": "status" }
+      }
+    }
+  }
+}
+```
+
+Commands are accepted only for an active subscription and a complete Provider/Channel capability route. `command_result` confirms bounded in-memory handoff, not completion of the underlying App Server request.
 
 ## Server messages / 服务端消息
 
 ### `server_hello`
 
-The server replies to a valid Client Hello with its UUIDv7 `connection_id`, a nested JSON v1 `channel_descriptor`, selected domain protocol, and effective transport limits. The descriptor kind is exactly `native`; its capabilities are exactly `notification`, `session_view`, `approval`, and `realtime_sync`.
+The server replies to a valid Client Hello with its UUIDv7 `connection_id`, a nested JSON v2 `channel_descriptor`, selected domain protocol, and effective transport limits. The descriptor kind is exactly `native`; its capabilities are exactly `notification`, `session_view`, `approval`, `text_input`, `form_input`, `realtime_sync`, and `remote_command`.
 
-服务端用 `server_hello` 响应有效 Client Hello，其中包含 UUIDv7 `connection_id`、嵌套的 JSON v1 `channel_descriptor`、选定的领域协议及实际 Transport 限制。Descriptor Kind 固定为 `native`，Capability 精确包含 `notification`、`session_view`、`approval` 与 `realtime_sync`。
+服务端用 `server_hello` 响应有效 Client Hello，其中包含 UUIDv7 `connection_id`、嵌套的 JSON v2 `channel_descriptor`、选定的领域协议及实际 Transport 限制。Descriptor Kind 固定为 `native`，Capability 精确包含 `notification`、`session_view`、`approval`、`text_input`、`form_input`、`realtime_sync` 与 `remote_command`。
 
-Approval is the only input capability in Native v1. It does not declare `choice_input`, `text_input`, `form_input`, or `remote_command`.
+The Hello additionally returns the UUIDv7 `host_run_id` and `resume_accepted`. One run ID is created for the in-memory Host lifetime and survives WebSocket, Relay, and RuntimeHost source restarts. A new Host process creates a new ID. When the supplied ID differs, all supplied cursors are ignored and `resume_accepted` is false.
 
-Approval 是 Native v1 唯一的输入 Capability；该版本不声明 `choice_input`、`text_input`、`form_input` 或 `remote_command`。
+Hello 还返回 UUIDv7 `host_run_id` 与 `resume_accepted`。运行 ID 对应一次内存 Host 生命周期，WebSocket、Relay 与 RuntimeHost Source 重启不会改变它；新 Host 进程会创建新 ID。客户端提交的 ID 不同时，全部 Cursor 均被忽略，并返回 `resume_accepted = false`。
+
+Native v3 intentionally does not declare the standalone `choice_input` capability; Codex Plan-mode questions use atomic `form_input` instead.
+
+Native v3 有意不声明独立的 `choice_input` Capability；Codex Plan 模式问题统一使用原子 `form_input`。
 
 ### Discovery batch
 
@@ -200,22 +234,25 @@ Provider 与 Session 按强类型 ID 排序。Count 只描述对应 Start 与 Co
 
 `last_sequence` 是 Snapshot 时所含 Session Aggregate 已表示的精确 Event Cursor。Discovery 不建立订阅、不重放历史，也不锁定该 Cursor。
 
-### Subscription result and baseline
+### Paged catch-up and live baseline
 
-For a new subscription, delivery order is:
+New and resumed subscriptions replay retained Events in pages of at most 128 Events. A non-final page is:
 
-新订阅的投递顺序固定为：
+新订阅与恢复订阅都以最多 128 条 Event 的页面重放内存历史。非最终页顺序为：
 
 ```text
-subscription_result(status = subscribed, baseline_sequence = N, pending_interaction_count = M)
-domain_message(subscription_session, agent_session representing N)
-domain_message(subscription_interaction, interaction_request) × M
-live domain messages with sequence > N
+subscription_result(status = catching_up, baseline_sequence = N, event_count = K)
+domain_message(live_event, agent_event) × K
+sync_completed(request_id)
 ```
 
-The Bridge establishes the subscription and atomically captures the current Aggregate cursor and all pending interactions. Events that race with setup are buffered behind the complete result/baseline batch, so no Event after `N` can overtake it. Historical Events at or below `N` are not replayed.
+The client stages each page and advances its cursor only after the matching `sync_completed`, then repeats `subscribe_session`. The final page uses `status = subscribed`, includes retained Events followed by the current Session and pending-interaction baseline, and atomically establishes live delivery. Events racing with final setup are buffered after `sync_completed`, so no Event after `N` can overtake it. `reset = true` requires discarding prior state for that Session before applying the page.
 
-Bridge 在交付 Baseline 时建立订阅，并原子捕获当前 Aggregate Cursor 与全部 Pending Interaction。与建立过程并发的 Event 会缓存在完整 Result/Baseline Batch 后方，因此 `N` 之后的 Event 不会越过它；`N` 及以前的历史 Event 不会重放。
+客户端暂存每一页，只在收到匹配的 `sync_completed` 后推进 Cursor，然后再次发送 `subscribe_session`。最终页使用 `status = subscribed`，先携带保留 Event，再携带当前 Session 与 Pending Interaction Baseline，并原子建立实时投递。与最终建立过程并发的 Event 会缓存在 `sync_completed` 之后，因此 `N` 之后的 Event 不会越过它。`reset = true` 要求应用该页前丢弃对应 Session 的旧状态。
+
+Catch-up Events restore in-app history but do not replay historical user notifications. When the client first enters live mode, it may notify once for each interaction that is still pending; later live Events follow the normal notification policy.
+
+Catch-up Event 用于恢复 App 内历史，不重放历史系统通知。客户端首次进入 Live 时，可对仍然 Pending 的每个 Interaction 各通知一次；此后的 Live Event 使用正常通知策略。
 
 A duplicate active subscription returns `already_subscribed` with the current cursor and does not resend the baseline. `unsubscription_result` reports either `unsubscribed` or `not_subscribed`.
 
@@ -223,9 +260,9 @@ A duplicate active subscription returns `already_subscribed` with the current cu
 
 ### Domain delivery contexts
 
-`domain_message` contains `context` plus one unchanged JSON v1 envelope in `domain`. Context and domain type must match:
+`domain_message` contains `context` plus one unchanged JSON v2 envelope in `domain`. Context and domain type must match:
 
-`domain_message` 包含 `context`，以及 `domain` 中一条未经改写的 JSON v1 Envelope。Context 与领域消息类型必须匹配：
+`domain_message` 包含 `context`，以及 `domain` 中一条未经改写的 JSON v2 Envelope。Context 与领域消息类型必须匹配：
 
 | Context type | Required domain type | Meaning |
 | --- | --- | --- |
@@ -243,6 +280,10 @@ Live Event 或 Subscription Interaction Context 携带 `route: observe_only | in
 After the Bridge and Provider accept a submission, the server returns `interaction_response_result(request_id, session_id, interaction_id)`. This confirms handoff only. The pending request closes solely through a later domain `InteractionResponded`, `InteractionClosed`, or owning lifecycle event.
 
 Bridge 与 Provider 接受提交后，服务端返回 `interaction_response_result(request_id, session_id, interaction_id)`；它只确认交接成功。Pending 请求只能由后续领域 `InteractionResponded`、`InteractionClosed` 或所属生命周期事件关闭。
+
+After a command is accepted into the Provider's bounded process-memory queue, the server returns `command_result(request_id, session_id, command_id)`. User, assistant, and system messages then arrive through ordinary live domain Events; a command-specific failure is reported as a system message.
+
+指令进入 Provider 的有界进程内队列后，服务端返回 `command_result(request_id, session_id, command_id)`。后续用户、助手和系统消息仍通过普通实时领域 Event 到达；具体指令失败会以系统消息报告。
 
 ## Errors / 错误
 
@@ -273,9 +314,9 @@ After Hello, the server sends periodic WebSocket Ping frames. Any valid client f
 
 Hello 完成后服务端定期发送 WebSocket Ping。任何有效 Client Frame 或 Pong 都会刷新 Activity；超过公布的 Idle Timeout 后服务端关闭连接。客户端应依 RFC 6455 响应 Ping，并且只能通过新建 WebSocket、重新执行 Hello 来重连。
 
-Disconnect immediately clears all subscriptions owned by that connection, pending baselines, and queued frames. Reconnect does not resume implicit state: the client must perform a fresh discovery and explicitly subscribe again. The new baseline cursor is authoritative, so the client replaces its Session view and then accepts only later live Events.
+Disconnect immediately clears connection-owned subscriptions, pending pages, and queued frames, but not the Host's in-memory Event streams. Reconnect repeats Hello and discovery. An accepted run ID resumes each Session after the submitted cursor; a different run ID clears client history and replays the new run from sequence one. Neither side persists Session/Event history across process death.
 
-断线会立即清除本连接拥有的全部订阅、Pending Baseline 与 Queue Frame。重连不会隐式恢复状态：客户端必须重新 Discovery 并显式 Subscribe。新的 Baseline Cursor 是权威边界，客户端应替换 Session View，此后只接收更晚的 Live Event。
+断线会立即清除本连接拥有的 Subscription、Pending Page 与 Queue Frame，但不会清除 Host 的本次运行内存事件流。重连重新执行 Hello 与 Discovery；运行 ID 一致时各 Session 从客户端 Cursor 增量补齐，不同时清除客户端历史并从 Sequence 1 重放新周期。任一端都不跨进程持久化 Session/Event 历史。
 
 Stopping or dropping the Channel Source revokes its RuntimeHost generation before cleanup and removes every generation-scoped subscription. Restart creates a fresh listener address and fresh ingress generation; stale handles and old clients cannot regain access.
 
@@ -283,16 +324,16 @@ Stopping or dropping the Channel Source revokes its RuntimeHost generation befor
 
 ## Security and exclusions / 安全边界与不包含内容
 
-Native v1 has two explicit security boundaries: operating-system loopback isolation for same-machine clients, and authenticated TLS for private-LAN clients. LAN credentials are per device, stored only as hashes on the Host, revocable while active, and provisioned only through [Pairing v1](pairing-v1.md). Native v1 still defines no wildcard/public-network exposure, browser Origin authorization, Internet endpoint, or Relay tunneling. Implementations must fail closed when the credential store, certificate, client binding, or private-address validation fails.
+Native v3 has two explicit security boundaries: operating-system loopback isolation for same-machine clients, and authenticated TLS for private-LAN clients. LAN credentials are per device, stored only as hashes on the Host, revocable while active, and provisioned only through [Pairing v1](pairing-v1.md). Native v3 still defines no wildcard/public-network exposure, browser Origin authorization, or direct Internet endpoint. Relay remains an opaque outer tunnel. Implementations must fail closed when the credential store, certificate, client binding, or private-address validation fails.
 
-Native v1 具有两种显式安全边界：同机客户端依赖操作系统 Loopback 隔离，私有 LAN 客户端使用带认证 TLS。LAN 凭证按设备独立签发，Host 仅保存 Hash，可在活动连接期间撤销，并且只能通过 [Pairing v1](pairing-v1.md)下发。Native v1 仍不定义 Wildcard/公网暴露、浏览器 Origin 授权、Internet Endpoint 或 Relay Tunnel。凭证库、证书、Client 绑定或私网地址校验失败时，实现必须 Fail Closed。
+Native v3 具有两种显式安全边界：同机客户端依赖操作系统 Loopback 隔离，私有 LAN 客户端使用带认证 TLS。LAN 凭证按设备独立签发，Host 仅保存 Hash，可在活动连接期间撤销，并且只能通过 [Pairing v1](pairing-v1.md)下发。Native v3 不定义 Wildcard/直接公网暴露或浏览器 Origin 授权；Relay 继续只是外层不透明隧道。凭证库、证书、Client 绑定或私网地址校验失败时，实现必须 Fail Closed。
 
-This contract excludes persistence, historical Event replay, offline queues, automatic approval retry, multiple concurrent clients, text/choice/command input, and database dependencies. Discovery, cursor-safe baseline synchronization, live delivery, approval correlation, cleanup, bounded failure, and explicit reconnection are required v1 behavior.
+This contract excludes persistence, pre-run Provider history, automatic approval retry, multiple concurrent clients, binary input, and database dependencies. Complete current-run in-memory retention, paged replay, discovery, cursor-safe live handoff, atomic form correlation, bounded FIFO prompt queues, typed remote commands, cleanup, bounded failure, and explicit reconnection are required v3 behavior.
 
-本契约不包含持久化、历史 Event 重放、离线 Queue、审批自动重试、多并发客户端、文本/选择/命令输入或数据库依赖。Discovery、Cursor-safe Baseline、Live Delivery、审批关联、清理、有界失败与显式重连均是 v1 必须行为。
+本契约不包含持久化、Host 启动前的 Provider 历史、审批自动重试、多并发客户端、二进制输入或数据库依赖。本次运行完整内存保留、分页重放、Discovery、Cursor-safe 实时交接、原子表单关联、有界 FIFO Prompt 队列、类型化远程指令、清理、有界失败与显式重连均是 v3 必须行为。
 
 ## Canonical fixtures / 权威 Fixtures
 
-[`fixtures/native-v1`](fixtures/native-v1) contains deterministic examples of all five client messages and every current server message family, including approval baseline and response frames. They are the cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and JSON types are semantic.
+[`fixtures/native-v3`](fixtures/native-v3) contains deterministic examples of all six client messages and every current server message family, including resumable Hello, approval/form baseline, command submission, and response frames. They are the cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and JSON types are semantic.
 
-[`fixtures/native-v1`](fixtures/native-v1) 包含全部五种 Client Message 及当前所有 Server Message Family 的确定性示例，包括审批 Baseline 与响应 Frame。它们是跨语言 Golden Fixtures。空白与 Object Key 顺序不属于语义；值、字段存在性、Array 顺序与 JSON 类型属于语义。
+[`fixtures/native-v3`](fixtures/native-v3) 包含全部六种 Client Message 及当前所有 Server Message Family 的确定性示例，包括可恢复 Hello、审批/表单 Baseline、指令提交与响应 Frame。它们是跨语言 Golden Fixtures。空白与 Object Key 顺序不属于语义；值、字段存在性、Array 顺序与 JSON 类型属于语义。

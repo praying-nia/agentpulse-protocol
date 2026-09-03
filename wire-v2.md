@@ -1,14 +1,14 @@
-# AgentPulse JSON Wire Protocol v1 / JSON 线协议 v1
+# AgentPulse JSON Wire Protocol v2 / JSON 线协议 v2
 
 ## Status and scope / 状态与范围
 
-This document is the canonical wire contract for AgentPulse protocol version 1. It maps the channel-neutral semantics in [Unified Domain Model](domain-model.md) to JSON without exposing Rust implementation details.
+This document is the canonical wire contract for AgentPulse protocol version 2. It maps the channel-neutral semantics in [Unified Domain Model](domain-model.md) to JSON without exposing Rust implementation details.
 
-本文档是 AgentPulse 协议版本 1 的权威线格式约定。它将[统一领域模型](domain-model.md)中的 Channel-neutral 语义映射为 JSON，不暴露 Rust 实现细节。
+本文档是 AgentPulse 协议版本 2 的权威线格式约定。它将[统一领域模型](domain-model.md)中的 Channel-neutral 语义映射为 JSON，不暴露 Rust 实现细节。
 
-Version 1 carries seven top-level message types:
+Version 2 carries seven top-level message types:
 
-版本 1 包含七种顶层消息：
+版本 2 包含七种顶层消息：
 
 ```text
 provider_descriptor
@@ -20,9 +20,9 @@ interaction_response
 agent_command
 ```
 
-Handshake, version negotiation, acknowledgements, delivery metadata, Session lists, Aggregate synchronization, framing, compression, authentication, and transport size limits are outside this domain protocol. A Transport may impose its own envelope and size limit around an entire JSON v1 envelope. The first such contract is [Native Transport v1](native-transport-v1.md), which nests these domain envelopes unchanged.
+Handshake, version negotiation, acknowledgements, delivery metadata, Session lists, Aggregate synchronization, framing, compression, authentication, and transport size limits are outside this domain protocol. A Transport may impose its own envelope and size limit around an entire JSON v2 envelope. The current such contract is [Native Transport v3](native-transport-v3.md), which nests these domain envelopes unchanged.
 
-握手、版本协商、ACK、投递元数据、Session 列表、Aggregate 同步、分帧、压缩、鉴权及 Transport 大小限制不属于本领域协议。Transport 可以在完整 JSON v1 Envelope 外增加自己的 Envelope 与大小限制；首个此类契约是 [Native Transport v1](native-transport-v1.md)，其中的领域 Envelope 保持不变。
+握手、版本协商、ACK、投递元数据、Session 列表、Aggregate 同步、分帧、压缩、鉴权及 Transport 大小限制不属于本领域协议。Transport 可以在完整 JSON v2 Envelope 外增加自己的 Envelope 与大小限制；当前契约是 [Native Transport v3](native-transport-v3.md)，其中的领域 Envelope 保持不变。
 
 ## Envelope and compatibility / Envelope 与兼容性
 
@@ -32,7 +32,7 @@ Every message uses this envelope:
 
 ```json
 {
-  "protocol_version": 1,
+  "protocol_version": 2,
   "message": {
     "type": "agent_event",
     "payload": {}
@@ -40,21 +40,21 @@ Every message uses this envelope:
 }
 ```
 
-- `protocol_version` is the JSON integer `1`. Other values are rejected before message decoding.
+- `protocol_version` is the JSON integer `2`. Other values are rejected before message decoding.
 - Every object rejects unknown fields. Every message type, tagged Variant, enum value, and Capability rejects unknown values.
-- Any schema addition or behavioral change requires a new protocol version; v1 has no same-version additive extension mechanism.
+- Any schema addition or behavioral change requires a new protocol version; v2 has no same-version additive extension mechanism.
 - Optional fields are omitted by canonical encoders when absent. Decoders accept either omission or JSON `null`.
 - Field names and wire enum values use lowercase `snake_case`.
 
 - `protocol_version` 是 JSON 整数 `1`；其他值会在消息解码前被拒绝。
 - 所有对象拒绝未知字段；消息类型、Tagged Variant、枚举值与 Capability 均拒绝未知值。
-- 任何 Schema 增补或行为变化都必须升级协议版本；v1 不提供同版本扩展机制。
+- 任何 Schema 增补或行为变化都必须升级协议版本；v2 不提供同版本扩展机制。
 - 可选字段为空时由规范编码器省略；解码器同时接受省略或 JSON `null`。
 - 字段名和线协议枚举值使用小写 `snake_case`。
 
 ## Scalar values / 标量值
 
-| Domain value | JSON v1 representation |
+| Domain value | JSON v2 representation |
 | --- | --- |
 | Protocol version | JSON unsigned integer |
 | AgentPulse typed ID | UUIDv7 string |
@@ -90,6 +90,7 @@ USER_INPUT_REQUEST  → user_input_request
 USER_INPUT_RESPONSE → user_input_response
 PROMPT_SUBMIT       → prompt_submit
 CANCEL              → cancel
+CONTROL             → control
 ```
 
 Channel Capability mapping:
@@ -156,6 +157,21 @@ occurred_at: RFC 3339
 payload: Agent Event Payload
 ```
 
+### `interaction_request`
+
+```text
+id: UUIDv7
+session_id: UUIDv7
+requested_at: RFC 3339
+expires_at?: RFC 3339
+prompt: non-empty text
+payload: Interaction Request Payload
+```
+
+The payload is the complete Interaction Request shape defined below. This top-level form is used when a Transport synchronizes an already-pending request without replaying its original Event.
+
+Payload 使用下文定义的完整 Interaction Request 结构。Transport 在不重放原始 Event 的情况下同步已处于 Pending 的 Request 时使用该顶层形式。
+
 ### `interaction_response`
 
 ```text
@@ -166,15 +182,7 @@ responded_at: RFC 3339
 payload: Interaction Response Payload
 ```
 
-### `interaction_request`
-
-The payload is the complete Interaction Request shape defined below. This top-level form is used when a Transport synchronizes an already-pending request without replaying its original Event.
-
-Payload 使用下文定义的完整 Interaction Request 结构。Transport 在不重放原始 Event 的情况下同步已处于 Pending 的 Request 时使用该顶层形式。
-
-### `interaction_response`
-
-An isolated response cannot be fully validated without its request. Request correlation, expiration, opaque Approval Option membership, and Choice membership are checked later by Core/Reducer when the request context is available.
+An isolated response cannot be fully validated without its request. Request correlation, expiration, Approval/Choice membership, and form completeness are checked later by Core/Reducer when the request context is available.
 
 独立的 Response 无法在缺少 Request 时完成全部验证。Request 关联、过期、不透明 Approval Option 与 Choice 成员关系由 Core/Reducer 在取得 Request 上下文后校验。
 
@@ -200,7 +208,7 @@ Every payload below is a JSON object with a required `type` field and exactly th
 session_started       { session: Agent Session }
 state_changed         { state: Agent State }
 connection_changed    { connection_state: Connection State }
-message               { message: { level, content } }
+message               { message: { role, level, content } }
 tool_activity         { activity: Tool Activity }
 plan_updated          { plan: Plan Snapshot }
 progress_updated      { progress: Progress Snapshot }
@@ -211,7 +219,7 @@ command_issued        { command: Agent Command }
 session_ended         { outcome: Session Outcome }
 ```
 
-`message.level` is `info`, `warning`, or `error`.
+`message.role` is `user`, `assistant`, or `system`; `message.level` is `info`, `warning`, or `error`.
 
 `interaction_closed.reason` is `resolved_elsewhere` or `provider_cancelled`. It removes a pending request without claiming that this Channel supplied a response.
 
@@ -282,6 +290,10 @@ approval {
 }
 choice   { options: [{ id, label, description? }], multiple: boolean }
 text     { placeholder?: non-empty text, multiline: boolean }
+form     {
+  fields: [{ id, header, prompt, options, allows_other, sensitive }],
+  blocking: boolean
+}
 ```
 
 Approval Subject:
@@ -309,15 +321,32 @@ Approval option IDs must be unique UUIDv7 values; disposition is `approve`, `rej
 approval { option_id: UUIDv7 }
 choice   { option_ids: UUIDv7[] }
 text     { text: non-empty text }
+form     { answers: [{ field_id, value }] }
 ```
+
+A form response is atomic: it contains exactly one answer for every field. An answer value is either `choice { option_id }` or `text { text }`; choice IDs must belong to that field, while text is accepted only when `allows_other` is true. Sensitive answers must not be retained after Provider handoff.
 
 The approval `option_id` must be one opaque option offered by the matching request. Choice `option_ids` must be non-empty and unique. Matching IDs to a Request is contextual validation performed later.
 
 ### Agent Command Payload
 
 ```text
-submit_prompt  { text: non-empty text }
+submit_prompt  { text: non-empty text, delivery: queue | steer }
 cancel_session { reason?: non-empty text }
+list_models    {}
+select_model   { model: non-empty text, effort?: non-empty text }
+set_plan_mode  { enabled: boolean }
+list_threads   { cursor?: non-empty text }
+resume_thread  { thread_id: non-empty text }
+start_thread   { cwd: non-empty text }
+compact        {}
+review         { instructions?: non-empty text }
+rename         { name: non-empty text }
+fork           {}
+status         {}
+list_permission_profiles {}
+select_permission_profile { profile: non-empty text }
+queue          { action: pause | resume | clear }
 ```
 
 ## Validation and fixtures / 校验与 Fixtures
@@ -326,6 +355,6 @@ JSON structure is validated before conversion. Decoded DTOs are then rebuilt thr
 
 JSON 结构会先被校验，随后 DTO 必须通过权威领域构造器重新建立，因此 UUID 版本、非空文本、Kind 格式、时间顺序、集合唯一性、Progress 边界与内嵌 Session 关联都无法绕过 Core 不变量。
 
-The deterministic examples in [`fixtures/v1`](fixtures/v1) cover every top-level message type and are the canonical cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and types are semantic.
+The deterministic examples in [`fixtures/v2`](fixtures/v2) cover every top-level message type and are the canonical cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and types are semantic.
 
-[`fixtures/v1`](fixtures/v1) 中的确定性示例覆盖全部顶层消息类型，是跨语言 Golden Fixtures 的权威副本。空白和 Object Key 顺序不属于语义；值、字段存在性、数组顺序与 JSON 类型属于语义。
+[`fixtures/v2`](fixtures/v2) 中的确定性示例覆盖全部顶层消息类型，是跨语言 Golden Fixtures 的权威副本。空白和 Object Key 顺序不属于语义；值、字段存在性、数组顺序与 JSON 类型属于语义。

@@ -164,6 +164,6 @@ Lifecycle failures identify the endpoint and start/stop phase and preserve the A
 
 ## Exclusions / 不包含内容
 
-These generic contracts do not define adapter discovery, endpoint removal, subscription persistence across process lifetime or authorization outside the active routing membership, historical replay, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. A concrete Transport may define its own bounded synchronization and reconnect behavior; see [Native Transport v1](native-transport-v1.md).
+These generic contracts do not define adapter discovery, endpoint removal, subscription persistence across process lifetime or authorization outside the active routing membership, historical replay, buffering, retries, acknowledgements, backpressure, transport, authentication, Relay behavior, or persistence. A concrete Transport may define its own bounded synchronization and reconnect behavior; see [Native Transport v3](native-transport-v3.md).
 
-这些通用契约不定义 Adapter 发现、端点移除、跨进程生命周期的订阅持久化或活动路由关系之外的鉴权、历史重放、缓冲、重试、ACK、背压、Transport、认证、Relay 行为或持久化。具体 Transport 可以定义自身的有界同步与重连行为；参见 [Native Transport v1](native-transport-v1.md)。
+这些通用契约不定义 Adapter 发现、端点移除、跨进程生命周期的订阅持久化或活动路由关系之外的鉴权、历史重放、缓冲、重试、ACK、背压、Transport、认证、Relay 行为或持久化。具体 Transport 可以定义自身的有界同步与重连行为；参见 [Native Transport v3](native-transport-v3.md)。

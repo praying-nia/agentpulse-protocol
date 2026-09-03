@@ -1,5 +1,5 @@
 {
-  "protocol_version": 1,
+  "protocol_version": 2,
   "message": {
     "type": "provider_descriptor",
     "payload": {
@@ -17,7 +17,8 @@
         "user_input_request",
         "user_input_response",
         "prompt_submit",
-        "cancel"
+        "cancel",
+        "control"
       ]
     }
   }

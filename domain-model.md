@@ -6,13 +6,13 @@ This document is the canonical semantic contract shared by AgentPulse Providers,
 
 本文档是 AgentPulse Provider、Core 服务与 Channel 共享的权威语义约定。它只定义领域含义和局部不变量。Rust `agentpulse-core` crate 负责实现本约定，但不是规范本身的权威来源。
 
-This semantic document does not define a wire format, field casing, enum discriminants, Capability bit positions, persistence schema, or protocol version. Those transport concerns are specified separately by [JSON Wire Protocol v1](wire-v1.md). Provider-private payloads cannot pass through the model as custom variants.
+This semantic document does not define a wire format, field casing, enum discriminants, Capability bit positions, persistence schema, or protocol version. Those transport concerns are specified separately by [JSON Wire Protocol v2](wire-v2.md). Provider-private payloads cannot pass through the model as custom variants.
 
-本语义文档不定义线格式、字段大小写、枚举判别值、Capability 位值、持久化 Schema 或协议版本；这些传输约定由 [JSON 线协议 v1](wire-v1.md)独立规定。Provider 私有 Payload 不得以 Custom Variant 形式穿透本模型。
+本语义文档不定义线格式、字段大小写、枚举判别值、Capability 位值、持久化 Schema 或协议版本；这些传输约定由 [JSON 线协议 v2](wire-v2.md)独立规定。Provider 私有 Payload 不得以 Custom Variant 形式穿透本模型。
 
 ## Shared values / 通用值对象
 
-- AgentPulse-owned entities use distinct UUIDv7 identifiers: Provider, Channel, Session, Event, Interaction, Command, Plan Item, Choice Option, and Tool Call IDs / AgentPulse 自有实体分别使用强类型 UUIDv7 标识，禁止混用。
+- AgentPulse-owned entities use distinct UUIDv7 identifiers: Provider, Channel, Session, Event, Interaction, Command, Plan Item, Form Field, Choice Option, and Tool Call IDs / AgentPulse 自有实体分别使用强类型 UUIDv7 标识，禁止混用。
 - Provider- or Channel-owned identifiers use non-blank opaque external IDs / Provider 或 Channel 原生标识使用非空 opaque External ID，不解释其格式。
 - Provider and Channel kinds are extensible lowercase ASCII slugs such as `codex` and `feishu` / Provider 与 Channel Kind 是可扩展的小写 ASCII slug。
 - Text preserves its original Unicode form but must contain at least one non-whitespace character / 文本保留原始 Unicode 内容，但必须至少包含一个非空白字符。
@@ -97,18 +97,17 @@ An `InteractionRequest` contains its ID, Session ID, request time, optional expi
 - Approval with structured command/network or file-change content plus Provider-issued opaque options. An unavailable request has no options and an explicit reason / Approval 包含结构化命令/网络或文件修改内容，以及 Provider 签发的不透明 Option；不可操作请求不含 Option，并明确给出原因。
 - Single- or multiple-choice with one or more uniquely identified options / 单选或多选至少提供一个 ID 唯一的 Option。
 - Non-sensitive single- or multiline text input / 非敏感的单行或多行 Text Input。
+- An atomic form with ordered uniquely identified fields, choices, optional Other/free text, blocking state, and a sensitive-display flag / 原子表单包含有序且 ID 唯一的字段、选项、可选 Other/自由文本、阻塞状态与敏感显示标记。
 
-An `InteractionResponse` identifies its request, Session, source Channel, response time, and corresponding response payload. Approval responses select exactly one opaque option. Validation rejects mismatched request or Session IDs, responses preceding requests, expired responses, mismatched payload kinds, read-only approvals, unknown approval options, duplicate choices, choices absent from the request, and multiple values for a single-choice request.
+An `InteractionResponse` identifies its request, Session, source Channel, response time, and corresponding response payload. Approval responses select exactly one opaque option. Form responses atomically answer every field exactly once. Validation rejects mismatched request or Session IDs, responses preceding requests, expired responses, mismatched payload kinds, read-only approvals, unknown options, duplicate choices/fields, incomplete forms, and text where Other/free text is unavailable.
 
-`InteractionResponse` 标识对应 Request、Session、来源 Channel、响应时间与匹配的响应 Payload；审批响应只能选择一个不透明 Option。验证会拒绝 Request 或 Session 不匹配、响应早于请求、响应过期、Payload 类型不匹配、只读审批、未知 Approval Option、重复 Choice、未知 Choice，以及单选请求的多值响应。
+`InteractionResponse` 标识对应 Request、Session、来源 Channel、响应时间与匹配的响应 Payload；审批响应只能选择一个不透明 Option，表单响应必须一次完整回答全部字段。验证会拒绝关联或类型不匹配、过期、只读审批、未知 Option、重复 Choice/字段、不完整表单，以及不允许 Other/自由文本时提交文本。
 
 `InteractionClosed` removes a pending request without attributing a response to the Channel. Its reason distinguishes resolution by Codex/another client from cancellation by the owning Provider lifecycle. / `InteractionClosed` 在不把响应归因于 Channel 的情况下移除 Pending Request，并区分 Codex/其他客户端已处理与 Provider 生命周期取消。
 
-`AgentCommand` contains its ID, target Session, source Channel, issue time, and either `SubmitPrompt` or `CancelSession`. SubmitPrompt requires Provider `PROMPT_SUBMIT` plus Channel `REMOTE_COMMAND` and `TEXT_INPUT`; CancelSession requires Provider `CANCEL` plus Channel `REMOTE_COMMAND`.
+`AgentCommand` contains its ID, target Session, source Channel, issue time, and one typed prompt, cancellation, model, Plan-mode, thread, review, status, permission, or queue operation. Prompt submission requires Provider `PROMPT_SUBMIT`; cancellation requires `CANCEL`; the remaining controls require `CONTROL`. Every command requires Channel `REMOTE_COMMAND`, and commands carrying text additionally require `TEXT_INPUT`.
 
-`AgentCommand` 包含自身 ID、目标 Session、来源 Channel、发出时间，以及 `SubmitPrompt` 或 `CancelSession`。SubmitPrompt 需要 Provider `PROMPT_SUBMIT` 与 Channel `REMOTE_COMMAND`、`TEXT_INPUT`；CancelSession 需要 Provider `CANCEL` 与 Channel `REMOTE_COMMAND`。
-
-Form and sensitive-input semantics are reserved for later versions / Form 与敏感输入语义留待后续版本定义。
+`AgentCommand` 包含自身 ID、目标 Session、来源 Channel、发出时间，以及一种类型化 Prompt、取消、模型、Plan 模式、Thread、Review、状态、权限或 Queue 操作。Prompt、取消与其他控制分别要求 Provider `PROMPT_SUBMIT`、`CANCEL` 与 `CONTROL`；全部指令要求 Channel `REMOTE_COMMAND`，携带文本的指令还要求 `TEXT_INPUT`。
 
 ## Events / 事件
 
@@ -120,7 +119,7 @@ Payloads cover:
 
 - Session start with its initial snapshot / 携带初始快照的 Session Start。
 - Execution-state and independent connectivity changes / 执行状态与独立连接状态变化。
-- User-facing Info, Warning, and Error messages / 面向用户的 Info、Warning 与 Error 消息。
+- User-, assistant-, or system-authored Info, Warning, and Error messages / 用户、助手或系统来源的 Info、Warning 与 Error 消息。
 - Sanitized Tool Started and Tool Finished activity / 已清理的 Tool Started 与 Tool Finished Activity。
 - Complete Plan and Progress snapshots / 完整 Plan 与 Progress 快照。
 - Interaction requests, responses, and explicit closure / Interaction Request、Response 与明确关闭。

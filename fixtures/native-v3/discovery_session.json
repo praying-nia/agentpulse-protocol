@@ -1,5 +1,5 @@
 {
-  "native_transport_version": 1,
+  "native_transport_version": 3,
   "message": {
     "type": "domain_message",
     "context": {
@@ -8,7 +8,7 @@
       "last_sequence": "7"
     },
     "domain": {
-      "protocol_version": 1,
+      "protocol_version": 2,
       "message": {
         "type": "agent_session",
         "payload": {

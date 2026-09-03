@@ -1,5 +1,5 @@
 {
-  "protocol_version": 1,
+  "protocol_version": 2,
   "message": {
     "type": "agent_command",
     "payload": {
@@ -9,7 +9,8 @@
       "issued_at": "2026-08-29T00:05:00Z",
       "payload": {
         "type": "submit_prompt",
-        "text": "Continue with the selected target"
+        "text": "Continue with the selected target",
+        "delivery": "queue"
       }
     }
   }
