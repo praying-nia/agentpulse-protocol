@@ -2,9 +2,9 @@
 
 ## Scope / 范围
 
-Pairing v1 is the complete QR-only public bootstrap from an untrusted Android installation to one authenticated, read-only Native Transport device identity. It transfers no Session or Event data. A pairing session is one-shot, expires after two minutes, permits at most five requests, and requires explicit confirmation on the Host terminal. USB, ADB, Bluetooth, and a shared LAN are not pairing dependencies.
+Pairing v1 is the complete QR-only public bootstrap from an untrusted Android installation to one authenticated Native Transport device identity. It transfers no Session, Event, or approval data. A pairing session is one-shot, expires after two minutes, permits at most five requests, and requires explicit confirmation on the Host terminal. USB, ADB, Bluetooth, and a shared LAN are not pairing dependencies.
 
-Pairing v1 是从未受信任 Android 安装到已认证、只读 Native Transport 设备身份的完整纯二维码公网 Bootstrap。它不传输 Session 或 Event 数据。每个配对会话仅可成功一次、两分钟后过期、最多接收五次请求，并且必须由用户在 Host 终端明确确认。配对不依赖 USB、ADB、蓝牙或共享局域网。
+Pairing v1 是从未受信任 Android 安装到已认证 Native Transport 设备身份的完整纯二维码公网 Bootstrap。它不传输 Session、Event 或审批数据。每个配对会话仅可成功一次、两分钟后过期、最多接收五次请求，并且必须由用户在 Host 终端明确确认。配对不依赖 USB、ADB、蓝牙或共享局域网。
 
 ## Discovery bundle / 发现包
 

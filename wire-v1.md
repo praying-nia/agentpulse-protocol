@@ -6,15 +6,16 @@ This document is the canonical wire contract for AgentPulse protocol version 1. 
 
 本文档是 AgentPulse 协议版本 1 的权威线格式约定。它将[统一领域模型](domain-model.md)中的 Channel-neutral 语义映射为 JSON，不暴露 Rust 实现细节。
 
-Version 1 carries six top-level message types:
+Version 1 carries seven top-level message types:
 
-版本 1 包含六种顶层消息：
+版本 1 包含七种顶层消息：
 
 ```text
 provider_descriptor
 channel_descriptor
 agent_session
 agent_event
+interaction_request
 interaction_response
 agent_command
 ```
@@ -165,9 +166,17 @@ responded_at: RFC 3339
 payload: Interaction Response Payload
 ```
 
-An isolated response cannot be fully validated without its request. Request correlation, expiration, allowed Approval Scope, and Choice membership are checked later by Core/Reducer when the request context is available.
+### `interaction_request`
 
-独立的 Response 无法在缺少 Request 时完成全部验证。Request 关联、过期、允许的 Approval Scope 与 Choice 成员关系由 Core/Reducer 在取得 Request 上下文后校验。
+The payload is the complete Interaction Request shape defined below. This top-level form is used when a Transport synchronizes an already-pending request without replaying its original Event.
+
+Payload 使用下文定义的完整 Interaction Request 结构。Transport 在不重放原始 Event 的情况下同步已处于 Pending 的 Request 时使用该顶层形式。
+
+### `interaction_response`
+
+An isolated response cannot be fully validated without its request. Request correlation, expiration, opaque Approval Option membership, and Choice membership are checked later by Core/Reducer when the request context is available.
+
+独立的 Response 无法在缺少 Request 时完成全部验证。Request 关联、过期、不透明 Approval Option 与 Choice 成员关系由 Core/Reducer 在取得 Request 上下文后校验。
 
 ### `agent_command`
 
@@ -197,11 +206,14 @@ plan_updated          { plan: Plan Snapshot }
 progress_updated      { progress: Progress Snapshot }
 interaction_requested { request: Interaction Request }
 interaction_responded { response: Interaction Response }
+interaction_closed    { interaction: { request_id, session_id, reason } }
 command_issued        { command: Agent Command }
 session_ended         { outcome: Session Outcome }
 ```
 
 `message.level` is `info`, `warning`, or `error`.
+
+`interaction_closed.reason` is `resolved_elsewhere` or `provider_cancelled`. It removes a pending request without claiming that this Channel supplied a response.
 
 Tool Activity:
 
@@ -263,29 +275,43 @@ payload: Interaction Request Payload
 Payload Variants:
 
 ```text
-approval { allowed_scopes: [once | session] }
+approval {
+  subject: Approval Subject,
+  options: [{ id, disposition, label, description? }],
+  unavailable_reason?: non-empty text
+}
 choice   { options: [{ id, label, description? }], multiple: boolean }
 text     { placeholder?: non-empty text, multiline: boolean }
 ```
 
-Approval Scope values and Choice Option IDs must be unique. Approval and Choice arrays must not be empty.
+Approval Subject:
+
+```text
+command {
+  kind: command | write_stdin,
+  command?: non-empty text,
+  cwd?: non-empty text,
+  reason?: non-empty text,
+  network?: { host: non-empty text, protocol: non-empty text }
+}
+file_change {
+  changes: [{ path: non-empty text, kind: add | delete | update, diff: string }],
+  grant_root?: non-empty text,
+  reason?: non-empty text
+}
+```
+
+Approval option IDs must be unique UUIDv7 values; disposition is `approve`, `reject`, or `cancel`. An actionable approval has one or more options and no `unavailable_reason`. A read-only approval has no options and a non-empty `unavailable_reason`. Choice Option IDs must be unique and its options array must not be empty.
 
 ### Interaction Response Payload
 
 ```text
-approval { decision: Approval Decision }
+approval { option_id: UUIDv7 }
 choice   { option_ids: UUIDv7[] }
 text     { text: non-empty text }
 ```
 
-Approval Decision:
-
-```text
-approved { scope: once | session }
-rejected { reason?: non-empty text }
-```
-
-`option_ids` must be non-empty and unique. Matching those IDs to a Request is contextual validation performed later.
+The approval `option_id` must be one opaque option offered by the matching request. Choice `option_ids` must be non-empty and unique. Matching IDs to a Request is contextual validation performed later.
 
 ### Agent Command Payload
 

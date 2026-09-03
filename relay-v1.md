@@ -1,6 +1,6 @@
 # AgentPulse Relay v1
 
-Relay v1 is a read-only public path for Native Transport v1 and the required
+Relay v1 is an opaque bidirectional public path for Native Transport v1 and the required
 transport for QR-only first pairing. A successful QR pairing stores and selects
 its authenticated Relay endpoint. A paired client may still explicitly select
 LAN later; there is no silent route fallback.

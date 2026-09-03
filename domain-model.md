@@ -94,13 +94,15 @@ An `InteractionRequest` contains its ID, Session ID, request time, optional expi
 
 `InteractionRequest` 包含自身 ID、Session ID、请求时间、可选过期时间、非空 Prompt，以及以下一种 Payload：
 
-- Approval with one or more unique allowed scopes: Once or Session / Approval 至少提供一个唯一 Scope：Once 或 Session。
+- Approval with structured command/network or file-change content plus Provider-issued opaque options. An unavailable request has no options and an explicit reason / Approval 包含结构化命令/网络或文件修改内容，以及 Provider 签发的不透明 Option；不可操作请求不含 Option，并明确给出原因。
 - Single- or multiple-choice with one or more uniquely identified options / 单选或多选至少提供一个 ID 唯一的 Option。
 - Non-sensitive single- or multiline text input / 非敏感的单行或多行 Text Input。
 
-An `InteractionResponse` identifies its request, Session, source Channel, response time, and corresponding response payload. Validation rejects mismatched request or Session IDs, responses preceding requests, expired responses, mismatched payload kinds, disallowed approval scopes, duplicate choices, choices absent from the request, and multiple values for a single-choice request.
+An `InteractionResponse` identifies its request, Session, source Channel, response time, and corresponding response payload. Approval responses select exactly one opaque option. Validation rejects mismatched request or Session IDs, responses preceding requests, expired responses, mismatched payload kinds, read-only approvals, unknown approval options, duplicate choices, choices absent from the request, and multiple values for a single-choice request.
 
-`InteractionResponse` 标识对应 Request、Session、来源 Channel、响应时间与匹配的响应 Payload。验证会拒绝 Request 或 Session 不匹配、响应早于请求、响应过期、Payload 类型不匹配、Approval Scope 不受支持、重复 Choice、未知 Choice，以及单选请求的多值响应。
+`InteractionResponse` 标识对应 Request、Session、来源 Channel、响应时间与匹配的响应 Payload；审批响应只能选择一个不透明 Option。验证会拒绝 Request 或 Session 不匹配、响应早于请求、响应过期、Payload 类型不匹配、只读审批、未知 Approval Option、重复 Choice、未知 Choice，以及单选请求的多值响应。
+
+`InteractionClosed` removes a pending request without attributing a response to the Channel. Its reason distinguishes resolution by Codex/another client from cancellation by the owning Provider lifecycle. / `InteractionClosed` 在不把响应归因于 Channel 的情况下移除 Pending Request，并区分 Codex/其他客户端已处理与 Provider 生命周期取消。
 
 `AgentCommand` contains its ID, target Session, source Channel, issue time, and either `SubmitPrompt` or `CancelSession`. SubmitPrompt requires Provider `PROMPT_SUBMIT` plus Channel `REMOTE_COMMAND` and `TEXT_INPUT`; CancelSession requires Provider `CANCEL` plus Channel `REMOTE_COMMAND`.
 
@@ -121,7 +123,7 @@ Payloads cover:
 - User-facing Info, Warning, and Error messages / 面向用户的 Info、Warning 与 Error 消息。
 - Sanitized Tool Started and Tool Finished activity / 已清理的 Tool Started 与 Tool Finished Activity。
 - Complete Plan and Progress snapshots / 完整 Plan 与 Progress 快照。
-- Interaction requests and responses / Interaction Request 与 Response。
+- Interaction requests, responses, and explicit closure / Interaction Request、Response 与明确关闭。
 - Remote commands / 远程命令。
 - Completed, Failed, or Cancelled run outcomes / Completed、Failed 或 Cancelled 运行结果。
 

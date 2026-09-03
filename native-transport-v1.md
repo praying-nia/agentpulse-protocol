@@ -2,9 +2,9 @@
 
 ## Status and scope / 状态与范围
 
-This document is the canonical contract between the Rust Native Channel and a local AgentPulse native client. Native Transport v1 is a complete **local, read-only** synchronization path: one client can identify itself, discover current Providers and Sessions, subscribe to selected Sessions, and receive their current view and subsequent normalized Events.
+This document is the canonical contract between the Rust Native Channel and an AgentPulse native client. Native Transport v1 provides authenticated Session/Event synchronization plus command-execution and file-change approval responses.
 
-本文档是 Rust Native Channel 与本地 AgentPulse 原生客户端之间的权威契约。Native Transport v1 是一条完整的**本地只读**同步链路：一个客户端可以标识自身、发现当前 Provider 与 Session、订阅指定 Session，并接收其当前视图及后续标准 Event。
+本文档是 Rust Native Channel 与 AgentPulse 原生客户端之间的权威契约。Native Transport v1 提供带认证的 Session/Event 同步，以及命令执行与文件修改审批回写。
 
 Native Transport is separate from the channel-neutral [JSON Wire Protocol v1](wire-v1.md). Control messages and delivery metadata use the envelope defined here; every `domain` value is an unchanged, independently valid JSON Wire v1 envelope.
 
@@ -107,9 +107,9 @@ The first application message must be exactly one `client_hello`:
 }
 ```
 
-Discovery is allowed only after Hello and while the client has no active or pending subscriptions. A new discovery replaces that connection's eligible Session set. Clients must unsubscribe from every Session before refreshing discovery.
+Discovery is allowed after Hello whenever no subscription baseline is currently being synchronized. Active subscriptions remain live during a refresh. A completed discovery replaces that connection's eligible Session set; clients subscribe only newly discovered Sessions and preserve the cursor, Events, and pending interactions of existing subscriptions.
 
-Discovery 只能在 Hello 完成后、且客户端没有活动或同步中的订阅时发起。新的 Discovery 会替换本连接可订阅的 Session 集合；刷新 Discovery 前必须先取消全部 Session 订阅。
+Discovery 可在 Hello 完成后、且当前没有 Subscription Baseline 正在同步时发起。刷新期间已有订阅保持实时投递。完成的新 Discovery 会替换本连接可订阅的 Session 集合；客户端只订阅新发现的 Session，并保留已有订阅的 Cursor、Event 与 Pending Interaction。
 
 ### `subscribe_session`
 
@@ -139,21 +139,45 @@ Unsubscription is idempotent. Once its result is queued, later Events for that S
 
 取消订阅是幂等操作。结果进入发送队列后，该 Session 的后续 Event 不再属于本客户端的投递目标。
 
-There is deliberately no Client Action message in v1. Approval, text/choice input, prompt submission, cancellation, or any other write-back cannot be sent over this protocol.
+### `submit_interaction_response`
 
-v1 有意不定义任何 Client Action 消息；审批、文本/选择输入、Prompt 提交、取消及其他写回操作都不能通过本协议发送。
+An actively subscribed client may submit one nested JSON Wire v1 `interaction_response`:
+
+```json
+{
+  "type": "submit_interaction_response",
+  "request_id": "01890f47-7c00-7000-8000-000000000005",
+  "response": {
+    "protocol_version": 1,
+    "message": {
+      "type": "interaction_response",
+      "payload": {
+        "request_id": "01890f47-7c00-7000-8000-000000000009",
+        "session_id": "01890f47-7c00-7000-8000-000000000003",
+        "channel_id": "01890f47-7c00-7000-8000-000000000002",
+        "responded_at": "2026-08-29T00:04:00Z",
+        "payload": { "type": "approval", "option_id": "01890f47-7c00-7000-8000-00000000000a" }
+      }
+    }
+  }
+}
+```
+
+The nested Channel ID must identify this Native Channel, the Session must be actively subscribed, the interaction must still be pending, and the opaque option ID must be one offered by that request. Native v1 does not add text/choice input, prompt submission, or standalone Session cancellation; a Provider-issued approval option may itself reject and cancel the current turn.
+
+已活动订阅的客户端可以提交一条嵌套 JSON Wire v1 `interaction_response`。其中 Channel ID 必须是当前 Native Channel，Session 必须已订阅，Interaction 仍须 pending，且不透明 Option ID 必须来自该请求。Native v1 尚不增加文本/选择输入、Prompt 提交或独立的 Session 取消命令；Provider 签发的审批 Option 本身仍可表示“拒绝并取消当前 Turn”。
 
 ## Server messages / 服务端消息
 
 ### `server_hello`
 
-The server replies to a valid Client Hello with its UUIDv7 `connection_id`, a nested JSON v1 `channel_descriptor`, selected domain protocol, and effective transport limits. The descriptor kind is exactly `native`; its capabilities are exactly `notification`, `session_view`, and `realtime_sync`.
+The server replies to a valid Client Hello with its UUIDv7 `connection_id`, a nested JSON v1 `channel_descriptor`, selected domain protocol, and effective transport limits. The descriptor kind is exactly `native`; its capabilities are exactly `notification`, `session_view`, `approval`, and `realtime_sync`.
 
-服务端用 `server_hello` 响应有效 Client Hello，其中包含 UUIDv7 `connection_id`、嵌套的 JSON v1 `channel_descriptor`、选定的领域协议及实际 Transport 限制。Descriptor Kind 固定为 `native`，Capability 只包含 `notification`、`session_view` 与 `realtime_sync`。
+服务端用 `server_hello` 响应有效 Client Hello，其中包含 UUIDv7 `connection_id`、嵌套的 JSON v1 `channel_descriptor`、选定的领域协议及实际 Transport 限制。Descriptor Kind 固定为 `native`，Capability 精确包含 `notification`、`session_view`、`approval` 与 `realtime_sync`。
 
-The three capabilities are an exact read-only promise, not a placeholder. In particular, Native v1 does not declare `approval`, `choice_input`, `text_input`, `form_input`, or `remote_command`.
+Approval is the only input capability in Native v1. It does not declare `choice_input`, `text_input`, `form_input`, or `remote_command`.
 
-这三个 Capability 是精确的只读承诺，而非占位声明；Native v1 不声明 `approval`、`choice_input`、`text_input`、`form_input` 或 `remote_command`。
+Approval 是 Native v1 唯一的输入 Capability；该版本不声明 `choice_input`、`text_input`、`form_input` 或 `remote_command`。
 
 ### Discovery batch
 
@@ -183,14 +207,15 @@ For a new subscription, delivery order is:
 新订阅的投递顺序固定为：
 
 ```text
-subscription_result(status = subscribed, baseline_sequence = N)
+subscription_result(status = subscribed, baseline_sequence = N, pending_interaction_count = M)
 domain_message(subscription_session, agent_session representing N)
+domain_message(subscription_interaction, interaction_request) × M
 live domain messages with sequence > N
 ```
 
-The Bridge establishes the subscription and captures the current Aggregate cursor atomically with baseline delivery. Events that race with setup are buffered behind the result and baseline, so no Event after `N` can overtake them. Historical Events at or below `N` are not replayed.
+The Bridge establishes the subscription and atomically captures the current Aggregate cursor and all pending interactions. Events that race with setup are buffered behind the complete result/baseline batch, so no Event after `N` can overtake it. Historical Events at or below `N` are not replayed.
 
-Bridge 在交付 Baseline 时建立订阅并捕获当前 Aggregate Cursor。与建立过程并发的 Event 会缓存在 Result 与 Baseline 后方，因此 `N` 之后的 Event 不会越过它们；`N` 及以前的历史 Event 不会重放。
+Bridge 在交付 Baseline 时建立订阅，并原子捕获当前 Aggregate Cursor 与全部 Pending Interaction。与建立过程并发的 Event 会缓存在完整 Result/Baseline Batch 后方，因此 `N` 之后的 Event 不会越过它；`N` 及以前的历史 Event 不会重放。
 
 A duplicate active subscription returns `already_subscribed` with the current cursor and does not resend the baseline. `unsubscription_result` reports either `unsubscribed` or `not_subscribed`.
 
@@ -207,12 +232,17 @@ A duplicate active subscription returns `already_subscribed` with the current cu
 | `discovery_provider` | `provider_descriptor` | Provider in a discovery batch |
 | `discovery_session` | `agent_session` | Session in a discovery batch, with `last_sequence` |
 | `subscription_session` | `agent_session` | Baseline for the matching subscription request |
+| `subscription_interaction` | `interaction_request` | One pending request in that same baseline, with its route |
 | `live_event` | `agent_event` | Event after the subscription cursor |
 | `live_session` | `agent_session` | Updated view after a state-changing live Event |
 
-A live Event context carries `route: observe_only | interaction_read_only`. An Interaction Request may be shown as information but must never expose an input control. For state-changing Events, the Event is delivered before its updated Session view.
+A live Event or subscription-interaction context carries `route: observe_only | interaction_read_only | interaction_interactive`. Controls may be exposed only for `interaction_interactive`; the client must submit exactly one Provider-issued opaque option ID. For state-changing Events, the Event is delivered before its updated Session view.
 
-Live Event Context 携带 `route: observe_only | interaction_read_only`。Interaction Request 可以只读展示，但绝不能暴露输入控件。对于改变状态的 Event，Event 必须先于更新后的 Session View 投递。
+Live Event 或 Subscription Interaction Context 携带 `route: observe_only | interaction_read_only | interaction_interactive`。只有 `interaction_interactive` 可展示控件，客户端必须提交 Provider 给出的一个不透明 Option ID。对于改变状态的 Event，Event 必须先于更新后的 Session View 投递。
+
+After the Bridge and Provider accept a submission, the server returns `interaction_response_result(request_id, session_id, interaction_id)`. This confirms handoff only. The pending request closes solely through a later domain `InteractionResponded`, `InteractionClosed`, or owning lifecycle event.
+
+Bridge 与 Provider 接受提交后，服务端返回 `interaction_response_result(request_id, session_id, interaction_id)`；它只确认交接成功。Pending 请求只能由后续领域 `InteractionResponded`、`InteractionClosed` 或所属生命周期事件关闭。
 
 ## Errors / 错误
 
@@ -227,8 +257,11 @@ Error 包含可选 Request ID、稳定 Code、非空 Diagnostic 与 `recoverable
 | `invalid_request` | invalid frame or state-machine operation | depends on violation |
 | `session_not_discovered` | subscribe target absent from latest snapshot | yes |
 | `session_not_found` | target disappeared before Bridge subscription | yes |
-| `read_only` | an unsupported write operation was attempted | yes |
 | `internal` | runtime handoff or encoding could not complete | normally yes |
+| `capability_unavailable` | the complete Provider/Channel approval route is unavailable | yes |
+| `interaction_not_pending` | the request was already resolved or closed | yes |
+| `session_not_subscribed` | this client does not own the target subscription | yes |
+| `provider_rejected` | the Provider rejected the handoff | yes |
 
 `recoverable: true` means the same connection may issue a later valid request; it does not mean the failed request is automatically retried. A nonrecoverable error is followed by a WebSocket Close. Transport framing, size, or queue failures can close the connection without a request-scoped result if a complete error frame cannot be sent safely.
 
@@ -254,12 +287,12 @@ Native v1 has two explicit security boundaries: operating-system loopback isolat
 
 Native v1 具有两种显式安全边界：同机客户端依赖操作系统 Loopback 隔离，私有 LAN 客户端使用带认证 TLS。LAN 凭证按设备独立签发，Host 仅保存 Hash，可在活动连接期间撤销，并且只能通过 [Pairing v1](pairing-v1.md)下发。Native v1 仍不定义 Wildcard/公网暴露、浏览器 Origin 授权、Internet Endpoint 或 Relay Tunnel。凭证库、证书、Client 绑定或私网地址校验失败时，实现必须 Fail Closed。
 
-This contract also excludes persistence, historical Event replay, offline queues, acknowledgements, automatic retry, multiple concurrent clients, Native UI behavior, Provider write-back, and database dependencies. Those exclusions do not weaken the local read-only path: discovery, cursor-safe baseline synchronization, live delivery, cleanup, bounded failure, and explicit reconnection are all required v1 behavior.
+This contract excludes persistence, historical Event replay, offline queues, automatic approval retry, multiple concurrent clients, text/choice/command input, and database dependencies. Discovery, cursor-safe baseline synchronization, live delivery, approval correlation, cleanup, bounded failure, and explicit reconnection are required v1 behavior.
 
-本契约也不包含持久化、历史 Event 重放、离线 Queue、ACK、自动重试、多并发客户端、Native UI 行为、Provider 写回及数据库依赖。这些排除项不削弱本地只读链路：Discovery、Cursor-safe Baseline 同步、Live Delivery、清理、有界失败与显式重连都是 v1 必须行为。
+本契约不包含持久化、历史 Event 重放、离线 Queue、审批自动重试、多并发客户端、文本/选择/命令输入或数据库依赖。Discovery、Cursor-safe Baseline、Live Delivery、审批关联、清理、有界失败与显式重连均是 v1 必须行为。
 
 ## Canonical fixtures / 权威 Fixtures
 
-[`fixtures/native-v1`](fixtures/native-v1) contains deterministic examples of all four client messages and every current server message family, including a nested discovery Session. They are the cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and JSON types are semantic.
+[`fixtures/native-v1`](fixtures/native-v1) contains deterministic examples of all five client messages and every current server message family, including approval baseline and response frames. They are the cross-language Golden Fixtures. Whitespace and object-key order are not semantic; values, field presence, array order, and JSON types are semantic.
 
-[`fixtures/native-v1`](fixtures/native-v1) 包含全部四种 Client Message 及当前所有 Server Message Family 的确定性示例，包括嵌套 Discovery Session。它们是跨语言 Golden Fixtures。空白与 Object Key 顺序不属于语义；值、字段存在性、Array 顺序与 JSON 类型属于语义。
+[`fixtures/native-v1`](fixtures/native-v1) 包含全部五种 Client Message 及当前所有 Server Message Family 的确定性示例，包括审批 Baseline 与响应 Frame。它们是跨语言 Golden Fixtures。空白与 Object Key 顺序不属于语义；值、字段存在性、Array 顺序与 JSON 类型属于语义。
