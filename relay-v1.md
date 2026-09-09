@@ -84,10 +84,11 @@ client_proof = HMAC(client_auth_key, prefix(2) || route_id_32)
 ```
 
 Relay atomically claims the matching waiting Host registration and sends each
-peer one `TunnelReady`. There are at most four waiting Host registrations, at
-most 16 routes per registration, and at most 32 outer connections per Relay
-process. Separate registrations allow a stable Native route set and a
-short-lived QR pairing route to coexist. Route registrations are memory-only
+peer one `TunnelReady`. There are at most 17 waiting Host registrations (16 paired devices plus one
+QR bootstrap route), at most 16 routes per registration, and at most 68 outer
+connections per Relay process. Separate per-device registrations allow new
+Native routes to become available without waiting for an existing tunnel or
+heartbeat; the QR pairing route can coexist with all paired devices. Route registrations are memory-only
 and disappear on restart.
 
 ## Tunnel limits and failures
