@@ -36,7 +36,7 @@ Each configured Codex thread ID must be a UUIDv7 and is reused as the AgentPulse
 | --- | --- |
 | First successful `thread/resume` | Sequence 1 `SessionStarted`; `name` then `preview` supplies title, `cwd` supplies workspace, native timestamps are preserved |
 | Resume of an existing mapping | Reconcile connection and current execution state from the returned snapshot; never a second `SessionStarted` |
-| `thread/status/changed: idle` | `StateChanged(Idle)` |
+| `thread/status/changed: idle` | `StateChanged(Idle)`, or preserve `WaitingForInteraction` while a proposed plan awaits a decision |
 | `thread/status/changed: active` | `Running`, or `WaitingForInteraction` when an active waiting flag is present |
 | `thread/status/changed: systemError` | `StateChanged(Failed)` |
 | `thread/status/changed: notLoaded`, `thread/closed` | `ConnectionChanged(Disconnected)` |
@@ -47,7 +47,9 @@ Each configured Codex thread ID must be a UUIDv7 and is reused as the AgentPulse
 | `item/tool/requestUserInput` | One atomic form preserving field order, choices, Other/free-text support, blocking state, and secret display policy |
 | `serverRequest/resolved` | `InteractionResponded` after an AgentPulse answer was written, otherwise `InteractionClosed(ResolvedElsewhere)` |
 | Completed nonblank `agentMessage` item | Baseline informational `Message`; `final_answer` is preferred over commentary for the outcome summary |
-| Completed turn | `SessionEnded(Completed)`, `Cancelled`, or `Failed` using the native terminal status and error |
+| Completed nonblank `plan` item | Preserve authoritative proposed-plan text as an assistant message |
+| Successfully completed turn containing a proposed plan | `WaitingForInteraction` and a Host-owned implementation/revision form, without clearing it through `SessionEnded` |
+| Other completed turn | `SessionEnded(Completed)`, `Cancelled`, or `Failed` using the native terminal status and error |
 | Other valid items/notifications or unconfigured threads | `ValidatedUnmapped`, with no AgentPulse sequence consumed |
 
 Event sequences are contiguous per Session. A sequence advances after Bridge state accepts the event, including the case where later Channel fan-out partially fails. Exact repeated item/turn notifications are bounded and deduplicated. Notifications for conflicting simultaneous turn IDs are terminal semantic failures rather than guessed reordering.
@@ -62,7 +64,11 @@ Event sequences are contiguous per Session. A sequence advances after Bridge sta
 - Command, cwd, reason, network host/protocol, paths, change kinds, and exact diffs are preserved. Requests missing safe presentation details or exceeding the 256 KiB presentation bound are explicitly read-only with a reason and no response options.
 - A user-input response answers every form field exactly once. Unknown choices, missing fields, duplicate fields, and text for fields without Other/free-text support are rejected. Secret answers exist only in the outbound response until it is written to Codex; pending/resolved Provider state does not retain them.
 - Common typed commands cover queued prompts and explicit steer, stop, model selection/catalog, Plan mode, thread list/resume/new, compact, review, rename, fork, status, permission profiles, and queue pause/resume/clear. They map only to generated-schema-validated App Server calls. Model selection is checked against a fresh `model/list` response, including the model's advertised reasoning efforts, before future-turn defaults change; invalid input is reported without poisoning the prompt queue.
+- Host-owned interactions use existing Domain v2 / Native v3 single-field forms and opaque option IDs. Their answers are handled locally, never sent as fabricated Codex permission/tool responses. Android presents pure single-choice forms as direct action buttons; multi-field and free-text forms retain atomic submission.
+- `/model` loads visible models across catalog pages, then presents the selected model's supported reasoning efforts with its default marked. The second selection revalidates a fresh catalog before atomically replacing model and effort; catalog IDs are resolved to the actual provider model name. Back and cancel do not change settings; `/model <id> [effort]` remains supported.
+- A proposed-plan form offers implementation or revision. Implementation sends `Implement the plan.` in the same thread with native `collaborationMode=default`; the default mode changes only after the start response succeeds. A rejected start leaves the plan available for retry. Revision or a newly typed prompt retains Plan mode. Pending plan decisions gate automatic queue draining; implementation runs before preserved queued messages without resuming an explicitly paused queue.
+- Local forms survive phone reconnects within the current Host run. A new desktop turn invalidates old choices; terminal turns, thread disconnects, stop, and explicit Plan-mode changes close the applicable forms. Responses are claimed once and checked again before action, so stale buttons cannot replay an implementation.
 - Prompt queues are process-memory FIFO, limited to 32 items per Session, 64 KiB per item, and 1 MiB in total. `stop` preserves and pauses the queue. A rejected `turn/start` preserves the head item and pauses draining until an explicit queue resume.
-- At most 64 interactions/responses and 64 control commands exist per Provider runtime. They are memory-only and disappear when that runtime stops.
+- At most 64 Codex interactions/responses, 64 Host-owned choices, and 64 control commands exist per Provider runtime. Catalog loading is bounded to 21 pages / 1,000 entries and rejects repeated cursors. All are memory-only and disappear when that runtime stops.
 - Remote `/resume` first establishes the current Session snapshot, then calls `thread/items/list` in ascending pages until `nextCursor` is absent. User and assistant message history enters the current Host run once; reopening an already tracked thread does not duplicate it. `/resume` listings preserve newest-first order within two groups, placing the current working directory first.
 - Automatic thread discovery may follow runtime-opened threads, but neither configured thread IDs nor pending approvals are persisted. Network Transport, Channel behavior, Relay, database, and offline history remain outside this Provider contract.
