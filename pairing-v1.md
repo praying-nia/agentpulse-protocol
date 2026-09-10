@@ -1,5 +1,7 @@
 # AgentPulse Pairing v1 / 配对协议 v1
 
+For explicit direct endpoints, see [discovery v2](pairing-v2.md). Legacy Relay v1 remains unchanged.
+
 ## Scope / 范围
 
 Pairing v1 is the complete QR-only public bootstrap from an untrusted Android installation to one authenticated Native Transport device identity. It transfers no Session, Event, or approval data. A pairing session is one-shot, expires after two minutes, permits at most five requests, and requires explicit confirmation on the Host terminal. USB, ADB, Bluetooth, and a shared LAN are not pairing dependencies.
