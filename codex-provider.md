@@ -7,12 +7,12 @@ This document defines the canonical AgentPulse mapping for Codex observation, ap
 ## Integration boundary / 接入边界
 
 - The Provider uses the official [Codex App Server](https://developers.openai.com/codex/app-server) instead of scraping PTY/TUI output.
-- Verified CLI releases are `0.150.1`, `0.152.0`, and `0.152.1`; the bundled `0.152.0`/`0.152.1` schemas are byte-identical. A valid newer SemVer starts best-effort with a visible warning and remains subject to strict schema failure. Older unknown or malformed versions are rejected before runtime creation.
+- Current CLI/schema baseline is `0.166.0`. Historical verified releases `0.150.1`, `0.152.0`, `0.152.1`, and `0.153.0` remain accepted; their captured fixtures pass the new bundle, but their binaries were not rerun in this upgrade. Other valid SemVer releases newer than `0.153.0` retain best-effort startup with a visible warning. Older unknown or malformed versions are rejected before runtime creation.
 - The complete generated JSON Schema is bundled and validated offline. Every client request/notification and every server request/notification/response/error must pass its corresponding schema.
 - Responses on the Provider-owned observer connection must match a pending request ID and the expected method-specific result schema. Responses belonging to a proxied desktop connection are generically schema-validated and passed through because that desktop client owns their correlation. Ambiguous frames, binary frames, and schema-invalid data remain failures of the connection that carried them.
 - Schema-valid messages outside the normalized mapping are counted as `ValidatedUnmapped`; they are not silently treated as mapped AgentPulse events.
 
-Provider 使用官方 Codex App Server 而不是抓取 PTY/TUI。已验证版本为 `0.150.1`、`0.152.0` 与 `0.152.1`；更高的合法 SemVer 会带明确警告尽力启动，较旧未知版本或非法版本会在创建运行目录前拒绝。全部双向 JSON 均按内置 Schema 离线校验，响应还必须匹配请求 ID 与方法结果类型。合法但当前领域不承载的消息记为 `ValidatedUnmapped`。
+Provider 使用官方 Codex App Server 而不是抓取 PTY/TUI。当前 CLI 与 Schema 基线为 `0.166.0`；历史版本 `0.150.1`、`0.152.0`、`0.152.1`、`0.153.0` 仍被接受，本轮保留历史样例回归。其他高于 `0.153.0` 的合法 SemVer 继续带警告尽力启动，较旧未知版本或非法版本会在创建运行目录前拒绝。全部双向 JSON 均按内置 Schema 离线校验，响应还必须匹配请求 ID 与方法结果类型。合法但当前领域不承载的消息记为 `ValidatedUnmapped`。
 
 ## Topology and lifecycle / 拓扑与生命周期
 
